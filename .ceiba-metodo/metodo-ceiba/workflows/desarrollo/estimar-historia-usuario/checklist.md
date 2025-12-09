@@ -38,6 +38,20 @@
 
 ## 📊 Estimación PERT
 
+### Fuentes de Estimación Base
+
+- [ ] **Pivotes Técnicos (prioridad 1)**: Para tareas aumentadas por IA
+  - [ ] Si existe `dod_pivots_location` y tarea coincide con pivote
+  - [ ] Tiempo obtenido YA incluye Método Ceiba (valor final)
+  - [ ] Fuente = "pivote-tecnico"
+  - [ ] NO se aplica descuento MC adicional
+
+- [ ] **Cálculo PERT (prioridad 2)**: Si no hay pivote técnico
+  - [ ] Escenarios O/M/P calculados
+  - [ ] Fórmula PERT aplicada
+  - [ ] Fuente = "pert"
+  - [ ] SÍ se aplica descuento MC (60%)
+
 ### Por Cada Tarea Principal
 
 - [ ] **Escenario Optimista (O)** calculado con contexto de precedentes
@@ -72,8 +86,18 @@
   - [ ] Aprobaciones de seguridad/compliance
 
 - [ ] Tareas manuales incluidas en **array "tareas_manuales"** (separado)
-- [ ] Tiempo Senior usado sin variación por seniority
+- [ ] Cada tarea manual tiene: numero, descripcion, tiempo_estimado, **fuente**
 - [ ] NO incluidas en tabla principal de estimación
+
+**Fuentes de Estimación para Tareas Manuales:**
+
+- [ ] **DoD (preferido)**: Si existe tabla en `dod_pivots_location` y tarea coincide
+  - [ ] Tiempo obtenido de tabla DoD según complejidad de la historia
+  - [ ] Fuente = "dod"
+  
+- [ ] **Estimación PERT (fallback)**: Si no hay pivote DoD configurado
+  - [ ] Tiempo calculado usando método PERT del Step 3.2
+  - [ ] Fuente = "pert"
 
 **Criterio de Validación**:
 ⚠️ Si **TODAS** las tareas están en "aumentadas por IA" → REVISAR
@@ -92,7 +116,10 @@
 
 ### Tareas Manuales (Si existen)
 
-- [ ] Array separado con: numero, descripcion, tiempo_estimado
+- [ ] Array separado con: numero, descripcion, tiempo_estimado, **fuente**
+- [ ] Fuente correcta asignada:
+  - [ ] "dod" si tiempo vino de tabla DoD
+  - [ ] "pert" si se calculó con PERT
 - [ ] total_tareas_manuales = suma de todos los tiempos
 - [ ] Totales de desarrollo calculados:
   - [ ] total_desarrollo_junior = total_mc_junior + total_tareas_manuales
@@ -126,6 +153,11 @@
 - [ ] **Tiempo total realista** considerando complejidad documentada
 - [ ] Tareas con alta incertidumbre (riesgo > 3h) identificadas
 - [ ] Ratio MC vs Tradicional coherente (~60% optimización en tareas aumentadas)
+
+### Verificación Matemática
+
+- [ ] **Verifica totales**: Recalcula la suma de cada columna y confirma que coincide con los totales reportados
+- [ ] **Verifica fórmulas**: Revisa que cada cálculo PERT y multiplicador fue aplicado correctamente
 
 ### Comparación con Refinamiento
 

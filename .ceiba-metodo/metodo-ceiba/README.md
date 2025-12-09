@@ -92,6 +92,7 @@ El Método Ceiba define 4 agentes especializados que corresponden a roles técni
 - Generar estándares de código específicos del proyecto
 - Explorar y analizar el proyecto en profundidad
 - Diagnosticar incidentes críticos
+- Administrar DoD y Pivotes Técnicos para estimación
 
 **Roles de la empresa que lo usan**: Coach técnico, Líder técnico, Arquitecto de software
 
@@ -247,8 +248,20 @@ flowchart TD
 | 1.2 | `architect *documentar-componente` | Documentar componentes individuales con detalle técnico | `docs/architecture/architecture-{componente}.md` |
 | 1.3 | `architect *documentar-flujo-negocio` | Documentar flujos críticos con diagramas de secuencia | `docs/architecture/flujo-{nombre}.md` |
 | 1.4 | `architect *generar-estandares-codigo` | Crear estándares específicos basados en código existente | `docs/architecture/coding-standards.md` |
+| 1.5 | `architect *administrar-pivotes-dod` | Configurar tiempos base para tareas manuales (DoD) y tareas técnicas (Pivotes) | `docs/architecture/dod-pivots.md` |
 
 **Cuándo ejecutar**: Al inicio del proyecto o cuando no existe documentación actualizada
+
+##### 📊 Archivo DoD y Pivotes Técnicos
+
+El archivo `dod-pivots.md` contiene dos tablas de tiempos preconfigurados:
+
+| Tabla | Propósito | Uso |
+|-------|-----------|-----|
+| **Definition of Done (DoD)** | Tiempos de tareas manuales obligatorias (PR, deploys, pruebas manuales) | Usado en **Refinamiento** para generar Fase N |
+| **Pivotes Técnicos** | Tiempos de tareas de código con Método Ceiba ya aplicado | Usado en **Estimación** como valor final |
+
+Este archivo es **administrado por el Arquitecto** y **consumido automáticamente** por los workflows de Refinamiento y Estimación.
 
 ##### **FASE 2: Creación de Historias** 📝
 
@@ -282,6 +295,8 @@ flowchart TD
 
 **Estado resultante**: `Refinado (Dev)` - Lista para estimación
 
+**📌 Consumo de DoD**: Si existe archivo `dod-pivots.md`, las tareas manuales de Fase N se toman de la tabla DoD.
+
 ##### **FASE 5: Estimación** 💻
 
 **Agente**: Desarrollador
@@ -291,6 +306,8 @@ flowchart TD
 | 5.1 | `dev *estimar-historia-usuario {número}` | Estimar basado en complejidad y riesgos | Historia con estimación en story points |
 
 **Estado resultante**: `Estimado (Dev)` - Lista para desarrollo
+
+**📌 Consumo de Pivotes**: Si existe archivo `dod-pivots.md`, las tareas de código usan tiempos de Pivotes Técnicos (ya incluyen Método Ceiba).
 
 ##### **FASE 6: Desarrollo** 💻
 
@@ -334,8 +351,6 @@ flowchart TD
 
 ### 2. Flujo de Migraciones
 
-Las migraciones son procesos especiales que requieren enfoques adaptados según su naturaleza. El Método Ceiba distingue dos tipos:
-
 #### 📋 Principios Generales de Migración
 
 Es fundamental identificar desde la fase comercial la arquitectura TO-BE, los indicadores KPI de éxito del proceso de migración, drivers de arquitectura que se deben garantizar y así mismo los adicionales que se deben de ejecutar en esta migración como por ejemplo: migrar pruebas existentes, nuevas pruebas unitarias, resolver deuda técnica, garantizar un porcentaje de cobertura, nuevas pruebas de integración, nuevas pruebas de carga, nuevas pruebas funcionales automatizadas, nuevas pruebas de seguridad.
@@ -343,6 +358,8 @@ Es fundamental identificar desde la fase comercial la arquitectura TO-BE, los in
 Recordar que migrar no necesariamente debe de tener los adicionales anteriores y deben ser claramente identificados y estimados en la fase de pivotes en caso de aplicar.
 
 En caso de no aplicar adicionales tener presente que es perfectamente válido según el proceso de desarrollo de Ceiba no tener en estos casos sonar, quality gate y revisiones par con todo el proceso de calidad de la compañía. Es vital dejarlo claro desde la entrega comercial.
+
+Tipicamente para estimar una migración se conforma un equipo con un gerente de proyectos, un arquitecto y un desarrollador por un periodo de tiempo de entre 7 a 15 días.
 
 **Principios clave de migración:**
 
@@ -354,6 +371,8 @@ En caso de no aplicar adicionales tener presente que es perfectamente válido se
 - **Evitar Big Bang**: Siempre que sea posible, priorizar entregas incrementales sobre despliegues masivos
 - **Rollback controlado**: Garantizar capacidad de reversión sin afectar el sistema completo
 
+Las migraciones son procesos especiales que requieren enfoques adaptados según su naturaleza. El Método Ceiba distingue dos tipos:
+
 #### 🔀 Tipo 1: Migración NO Pivotable
 
 **Definición**: Migración donde NO es posible identificar pivotes claros de migración.
@@ -364,16 +383,17 @@ En caso de no aplicar adicionales tener presente que es perfectamente válido se
 - Cambios tecnológicos sin ruta incremental clara (Spring Boot 2.0 → 3.0)
 - Refactorizaciones masivas sin puntos intermedios
 
-**Estimación**: Por juicio experto del equipo técnico
+**Estimación**: Por juicio experto del equipo técnico,
+recordar que antes de todo esto se debe tener acceso al código fuente y haber instalado el método ceiba.
 
 ##### Proceso Recomendado
 
 | Fase | Agente | Comando | Actividad |
 |------|--------|---------|-----------|
 | **1. Exploración** | Arquitecto | `architect *explorar-proyecto` | Analizar código, identificar riesgos, evaluar alternativas, definir estrategia |
-| **2. Documentación** | Arquitecto | Manual | Generar `docs/architecture/migration/estrategia-migracion.md` |
+| **2. Documentación** | Arquitecto | `architect *documentar-arquitectura-base` | Generar `docs/architecture/index.md` |
 | **3. Historias** | PO | `po *escribir-historia` | Crear historias de usuario técnicas |
-| **4-8. Ejecución** | Todos | Flujo normal | Seguir fases 3-8 del Flujo de Desarrollo |
+| **4. Ejecución** | Todos | Flujo normal | Seguir fases 3-8 del Flujo de Desarrollo |
 
 **Ejemplo de prompt para exploración**:
 
@@ -385,6 +405,13 @@ Ayúdame a:
 1. Hacer un análisis de impacto de dicha tarea
 2. Proponer una estrategia concreta de migración
 3. Identificar una secuencia de pasos para dividir en historias de usuario técnicas
+4. Realiza un estimación justificada de horas de cuanto tiempo consideras que puede tomar 
+esta labor usando agentes de inteligencia artificial.
+5. Ayudame a identificar que tipos de pruebas 
+tiene esta base de código fuente, 
+si existe un pipeline de ci/cd,
+la complejidad del código fuente en una escala 
+de 0-10 y la cobertura de pruebas actual.
 
 Documenta el análisis en: docs/architecture/migration/estrategia-migracion.md
 ```
@@ -418,10 +445,10 @@ Documenta el análisis en: docs/architecture/migration/estrategia-migracion.md
 | Fase | Agente | Comando | Actividad | Entregable |
 |------|--------|---------|-----------|------------|
 | **1. Inventario** | Arquitecto | `architect *explorar-proyecto` | Catalogar todos los pivotes con clasificación | `docs/architecture/migration/pivotes-inventario.md` |
-| **2. Estimación** | Arquitecto + Dev | Manual | Migrar 3 pivotes representativos (baja/media/alta complejidad) y medir tiempos | Estimación empírica del proyecto |
-| **3. Arquitectura TO-BE** | Arquitecto | `architect *crear-arquitectura` | Documentar arquitectura objetivo | `docs/architecture/migration/arquitectura-to-be.md` |
-| **4. Historias por pivote** | PO | `po *escribir-historia` | Crear historia por pivote o grupo de pivotes | Historia por cada pivote |
-| **5-9. Ejecución** | Todos | Flujo normal | Seguir fases 3-8 del Flujo de Desarrollo por cada pivote | Pivotes migrados incrementalmente |
+| **2. Arquitectura TO-BE** | Arquitecto | `architect *crear-arquitectura` | Documentar arquitectura objetivo | `docs/architecture/migration/arquitectura-to-be.md` |
+| **3. Historias por pivote** | PO | `po *escribir-historia` | Crear historia por pivote o grupo de pivotes | Historia por cada pivote |
+| **4. Ejecución** | Todos | Flujo normal | Seguir fases 3-8 del Flujo de Desarrollo por cada pivote | Pivotes migrados incrementalmente |
+| **5. Estimación** | Arquitecto + Dev | Manual | Migrar 3 pivotes representativos (baja/media/alta complejidad) y medir tiempos | Estimación empírica del proyecto |
 
 **Ejemplo de prompt para inventario**:
 
@@ -442,6 +469,12 @@ pivotes con:
 
 Genera un inventario completo en: docs/architecture/migration/pivotes-inventario.md
 Prioriza según valor de negocio.
+
+Adicionalmente ayudame a identificar que tipos 
+de pruebas tiene esta base de código fuente, 
+si existe un pipeline de ci/cd,
+la complejidad del código fuente en una escala de 0-10 
+y la cobertura de pruebas actual.
 ```
 
 ##### 📊 Estrategia de Estimación Empírica
@@ -935,6 +968,7 @@ proyecto/
 | `*documentar-componente` | Documentar componente específico del sistema | Desarrollo |
 | `*documentar-flujo-negocio` | Documentar flujos críticos con diagramas de secuencia | Desarrollo |
 | `*generar-estandares-codigo` | Crear estándares basados en análisis del proyecto | Desarrollo |
+| `*administrar-pivotes-dod` | Gestionar tabla de pivotes DoD y técnicos para estimación | Desarrollo |
 | `*explorar-proyecto` | Explorar y entender cualquier aspecto del proyecto | Todos |
 | `*diagnosticar` | Diagnosticar causa raíz con metodología 5 Whys | Soporte |
 | `*documentar-incidente` | Post-mortem y evaluación para Knowledge Base | Soporte |

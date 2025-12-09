@@ -132,33 +132,36 @@ No es posible estimar sin tareas definidas.</output>
 
 </substep>
 
-<substep n="3.2" goal="Calcular Estimación Base con PERT (Senior)">
+<substep n="3.2" goal="Calcular Estimación Base">
 
-<critical>Método PERT: (Optimista + 4×Probable + Pesimista) ÷ 6</critical>
-<critical>Captura incertidumbre de la tarea usando 3 escenarios</critical>
+<critical>PRIORIDAD 1: Buscar en Pivotes Técnicos (si tarea es aumentada por IA)</critical>
+<critical>PRIORIDAD 2: Si no encuentra pivote, usar PERT</critical>
 
-<action>Para cada tarea, generar 3 estimaciones desde perspectiva de un Senior:</action>
+<check if="tarea es AUMENTADA POR IA">
+<action>Intentar cargar tabla Pivotes Técnicos desde: {dod_pivots_location}</action>
 
-<action>**Escenario Optimista (O):**</action>
-<action>- Todo funciona a la primera, sin interrupciones</action>
-<action>- Código base está limpio y bien documentado</action>
-<action>- Usa contexto de Step 2: Si hay precedente similar → O es menor</action>
+<check if="archivo existe">
+<action>Buscar coincidencia semántica con descripción de tarea</action>
 
-<action>**Escenario Más Probable (M):**</action>
-<action>- Tiempo más realista considerando ciclo normal</action>
-<action>- Incluye desarrollo + testing + correcciones típicas</action>
-<action>- Usa nivel de complejidad extraído en Step 2</action>
+<check if="coincide con pivote">
+<action>Extraer complejidad de historia (Step 2)</action>
+<action>Usar tiempo del pivote según complejidad</action>
+<critical>Este tiempo YA incluye Método Ceiba - es el valor FINAL para Senior</critical>
+<critical>NO aplicar descuento adicional - el pivote ya está optimizado</critical>
+<output>✅ Tiempo desde pivote (con MC): {{tiempo}}h</output>
+<action>Marcar fuente como "pivote-tecnico"</action>
+<action>Usar este tiempo como mc_senior directamente</action>
+<goto substep="3.3">Aplicar multiplicadores</goto>
+</check>
+</check>
+</check>
 
-<action>**Escenario Pesimista (P):**</action>
-<action>- Se materializan riesgos conocidos del refinamiento</action>
-<action>- Incluye refactorización o debugging complejo</action>
-<action>- Usa riesgos documentados en Step 2</action>
-
-<action>Calcular Estimación Base:</action>
-<action>**Senior = (O + 4×M + P) ÷ 6**</action>
-
-<action>Calcular Rango de Incertidumbre:</action>
-<action>**Riesgo = P - O** (cuanto mayor, más incertidumbre)</action>
+<action>Calcular con PERT:</action>
+<action>Optimista (O): Todo funciona a la primera</action>
+<action>Probable (M): Tiempo realista con ciclo normal</action>
+<action>Pesimista (P): Riesgos materializados</action>
+<action>Senior = (O + 4×M + P) ÷ 6</action>
+<action>Marcar fuente como "pert"</action>
 
 </substep>
 
@@ -192,13 +195,42 @@ No es posible estimar sin tareas definidas.</output>
 <substep n="3.4" goal="Clasificar Tarea: Aumentada por IA vs Manual">
 
 <action>Evaluar si la tarea puede ser aumentada/impactada por IA o requiere intervención 100% manual</action>
-<action>Identificar tareas manuales sin beneficio de IA, como por ejemplo: Ejecución de pipelines y despliegues, Configuraciones manuales en servidores/infraestructura,  Coordinación con equipos externos (emails, reuniones), Aprobaciones de seguridad/compliance, Ejecución manual de scripts SQL en base de datos </action>
+<action>Identificar tareas manuales sin beneficio de IA, como por ejemplo: Ejecución de pipelines y despliegues, Configuraciones manuales en servidores/infraestructura, Coordinación con equipos externos (emails, reuniones), Aprobaciones de seguridad/compliance, Ejecución manual de scripts SQL en base de datos</action>
+
 <check if="tarea es MANUAL (NO impactada por IA)">
-    <action>Para tareas manuales:</action>
-    <action>1. Añadir a array separado: **tareas_manuales**</action>
-    <action>2. Incluir propiedades: numero, descripcion, tiempo_estimado</action>
-    <action>3. Usar tiempo Senior como tiempo_estimado (sin variación por seniority)</action>
-    <action>4. NO incluir en tabla principal de estimación</action>
+    
+    <critical>ESTRATEGIA DE ESTIMACIÓN PARA TAREAS MANUALES:</critical>
+    <critical>1. Intentar usar pivotes preconfigurados del Definition of Done (si existen)</critical>
+    <critical>2. Si no hay pivote, usar estimación PERT del Step 3.2</critical>
+    
+    <action>Verificar si existe archivo de pivotes DoD: {dod_pivots_location}</action>
+    
+    <check if="archivo {dod_pivots_location} existe Y es accesible">
+        <action>Cargar contenido de la tabla de pivotes</action>
+        <action>Buscar coincidencia entre la descripción de la tarea manual y las tareas configuradas en la tabla</action>
+        
+        <check if="tarea coincide con pivote configurado">
+            <action>Extraer nivel de complejidad de la historia (BAJA/MEDIA/ALTA del Step 2)</action>
+            <action>Buscar tiempo correspondiente en la tabla según esa complejidad</action>
+            <action>Usar ese tiempo como tiempo_estimado de la tarea manual</action>
+            <action>Marcar fuente como "dod"</action>
+        </check>
+        
+        <check if="tarea NO coincide con ningún pivote configurado">
+            <action>Usar tiempo Senior calculado en Step 3.2 (PERT) como tiempo_estimado</action>
+            <action>Marcar fuente como "pert"</action>
+        </check>
+    </check>
+    
+    <check if="archivo {dod_pivots_location} NO existe O no es accesible">
+        <action>Usar tiempo Senior calculado en Step 3.2 (PERT) como tiempo_estimado</action>
+        <note>Pivotes DoD opcionales no configurados - usando estimación PERT normal</note>
+        <action>Marcar fuente como "pert"</action>
+    </check>
+    
+    <action>Añadir tarea a array separado: **tareas_manuales**</action>
+    <action>Incluir propiedades: numero, descripcion, tiempo_estimado, fuente</action>
+    <action>NO incluir en tabla principal de estimación (esa es solo para tareas aumentadas por IA)</action>
 
     <action>SKIP del paso 3.5, solo se estiman tareas aumentadas por IA</action>
 </check>
@@ -207,8 +239,19 @@ No es posible estimar sin tareas definidas.</output>
 
 <substep n="3.5" goal="Calcular Tiempo Método Ceiba (Solo Tareas Aumentadas por IA)">
     <critical>Este substep solo aplica para tareas aumentadas/impactadas por IA</critical>
+    <critical>EXCEPCIÓN: Si la tarea vino de pivote técnico, SKIP este paso (ya tiene MC aplicado)</critical>
     <critical>Método Ceiba discount = {estimation_factors.metodo_ceiba_discount} (60% de ahorro)</critical>
     <critical>Fórmula: Método Ceiba = Senior × (1 - discount)</critical>
+    
+    <check if="fuente == 'pivote-tecnico'">
+        <action>SKIP cálculo - el tiempo del pivote YA es Método Ceiba Senior</action>
+        <action>Aplicar solo multiplicadores por seniority al mc_senior del pivote</action>
+        <action>MC Junior = mc_senior × multiplicador_complejidad</action>
+        <action>MC Semi Sr = mc_senior × multiplicador_complejidad</action>
+        <action>Añadir tarea a array: **tareas** (tabla principal)</action>
+    </check>
+    
+    <check if="fuente == 'pert'">
     <action>Calcular Método Ceiba Senior:</action>
     <action>**Método Ceiba Senior = Senior × (1 - {estimation_factors.metodo_ceiba_discount})**</action>
     <action>Ejemplo: Senior = 10h → MC Senior = 10h × 0.40 = 4h</action>
@@ -221,6 +264,7 @@ No es posible estimar sin tareas definidas.</output>
     <action>- MC Semi Sr: 4h × 1.6 = 6.4h</action>
     <action>- MC Junior: 4h × 2.5 = 10h</action>
     <action>Añadir tarea a array: **tareas** (tabla principal)</action>
+    </check>
 </substep>
 </for-each>
 </step>
@@ -368,7 +412,7 @@ Estimador: {user_name}</output>
 
 <step n="9" goal="Validar Completitud de Estimación">
 
-<invoke-task>Validate against checklist at {validation} using ceiba-metodo/core/tasks/validate-workflow.xml</invoke-task>
+<invoke-task>Validate against checklist at {validation} using .ceiba-metodo/core/tasks/validate-workflow.xml</invoke-task>
 
 </step>
 

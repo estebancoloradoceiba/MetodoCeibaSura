@@ -1,4 +1,4 @@
-<task id="ceiba-metodo/core/tasks/validate-workflow.xml" name="Validate Workflow Output">
+<task id=".ceiba-metodo/core/tasks/validate-workflow.xml" name="Validate Workflow Output">
   <objective>Run a checklist against a document with thorough analysis and produce a validation report</objective>
 
   <inputs>

@@ -16,10 +16,12 @@ date: system-generated
 required_inputs:
   - project_name: "Nombre del proyecto para el cual se genera la arquitectura"
 
-# Optional docs that can be provided as input
+# Optional docs that are loaded and analyzed during workflow execution
 recommended_inputs:
-  - docs_prd: "Path to docs/prd.md - Product Requirements Document"
-  - existing_docs: "Path to any existing architecture or requirements documents"
+  - prd: "Documento de requisitos del producto con FR y NFR"
+  - epicas: "Épicas con historias de usuario y criterios de aceptación"
+  - brief_alcance: "Resumen de necesidades y alcance del producto"
+  - reporte_validacion_prd: "Reporte de validación de completitud del PRD (generado por workflow validar-completitud-prd)"
 
 # Module path and component files
 installed_path: "{project-root}/.ceiba-metodo/metodo-ceiba/workflows/arquitectura/crear-arquitectura-solucion"
@@ -29,11 +31,10 @@ template_file: "{installed_path}/templates/solution-architecture-template.md"
 validation: "{installed_path}/checklist.md"
 
 # Output configuration
-default_output_file: "{output_folder}/architecture-{{project_name}}-{{date}}.md"
+default_output_file: "{output_folder}/propuesta/04-arquitectura/arquitectura-solucion-comercial.md"
 output_format: "markdown"
-output_title: "Documento de Arquitectura para {{project_name}}"
 
 # Workflow settings
-workflow_mode: "interactive"
 elicitation_mode: "advanced"
-allow_yolo_mode: true
+
+# Web bundle configuration for portability

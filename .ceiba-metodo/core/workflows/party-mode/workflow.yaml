@@ -5,7 +5,6 @@ author: "BMad"
 
 # Critical data sources - manifest and config overrides
 agent_manifest: "{project-root}/.ceiba-metodo/_cfg/agent-manifest.csv"
-agent_overrides: "{project-root}/.ceiba-metodo/_cfg/agents/*.customize.yaml"
 date: system-generated
 
 # This is an interactive action workflow - no template output
@@ -15,9 +14,15 @@ instructions: "{project-root}/.ceiba-metodo/core/workflows/party-mode/instructio
 # Exit conditions
 exit_triggers:
   - "*exit"
-  - "end party mode"
-  - "stop party mode"
 
 standalone: true
 
-web_bundle: false
+web_bundle:
+  name: "party-mode"
+  description: "Orchestrates group discussions between all installed BMAD agents, enabling natural multi-agent conversations"
+  author: "BMad"
+  instructions: ".ceiba-metodo/core/workflows/party-mode/instructions.md"
+  agent_manifest: ".ceiba-metodo/_cfg/agent-manifest.csv"
+  web_bundle_files:
+    - ".ceiba-metodo/core/workflows/party-mode/instructions.md"
+    - ".ceiba-metodo/_cfg/agent-manifest.csv"

@@ -1,0 +1,54 @@
+# Ciclo Completo de Historia - Meta Workflow Configuration
+name: "ciclo-completo-historia"
+description: "Meta-workflow que ejecuta el ciclo completo de una historia de usuario: análisis arquitectónico, refinamiento técnico, estimación de tiempos, desarrollo e implementación, y revisión por pares. Orquesta los cinco workflows principales del Método Ceiba."
+author: "Método Ceiba"
+version: "1.0.0"
+
+# Critical variables load from config_source
+config_source: "{project-root}/.ceiba-metodo/metodo-ceiba/config.yaml"
+output_folder: "{config_source}:output_folder"
+user_name: "{config_source}:user_name"
+communication_language: "{config_source}:communication_language"
+document_output_language: "{config_source}:document_output_language"
+date: system-generated
+
+# Story locations
+dev_story_location: "{config_source}:dev_story_location"
+
+# Module path and component files
+installed_path: "{project-root}/.ceiba-metodo/metodo-ceiba/workflows/desarrollo/ciclo-completo-historia"
+template: false # Action workflow - orchestrates other workflows
+instructions: "{installed_path}/instructions.md"
+
+# Variables used in workflow
+variables:
+  story_number: "prompt" # Número de la historia a procesar (ej: 6 para 6.nombre.story.md)
+
+  # Workflow paths - apuntan a los workflows que se invocarán
+  analisis_workflow: "{project-root}/.ceiba-metodo/metodo-ceiba/workflows/arquitectura/analizar-disenar-historia-usuario/workflow.yaml"
+  refinamiento_workflow: "{project-root}/.ceiba-metodo/metodo-ceiba/workflows/desarrollo/refinamiento-tecnico/workflow.yaml"
+  estimacion_workflow: "{project-root}/.ceiba-metodo/metodo-ceiba/workflows/desarrollo/estimar-historia-usuario/workflow.yaml"
+  desarrollo_workflow: "{project-root}/.ceiba-metodo/metodo-ceiba/workflows/desarrollo/desarrollar-historia-usuario/workflow.yaml"
+  revision_workflow: "{project-root}/.ceiba-metodo/metodo-ceiba/workflows/desarrollo/revisar-historia/workflow.yaml"
+
+  # Execution control
+  skip_analisis: false # Permite omitir análisis arquitectónico si ya está hecho
+  skip_refinamiento: false # Permite omitir refinamiento si ya está hecho
+  skip_estimacion: false # Permite omitir estimación si ya está hecha
+  skip_desarrollo: false # Permite omitir desarrollo si ya está hecho
+  skip_revision: false # Permite omitir revisión si no se requiere
+
+# Story file that will be processed
+target_story_file: "{dev_story_location}/{story_number}.story.md"
+
+# Web bundle configuration for deployment
+web_bundle_files:
+  - ".ceiba-metodo/metodo-ceiba/workflows/desarrollo/ciclo-completo-historia/workflow.yaml"
+  - ".ceiba-metodo/metodo-ceiba/workflows/desarrollo/ciclo-completo-historia/instructions.md"
+
+existing_workflows:
+  - analisis_workflow: ".ceiba-metodo/metodo-ceiba/workflows/arquitectura/analizar-disenar-historia-usuario/workflow.yaml"
+  - refinamiento_workflow: ".ceiba-metodo/metodo-ceiba/workflows/desarrollo/refinamiento-tecnico/workflow.yaml"
+  - estimacion_workflow: ".ceiba-metodo/metodo-ceiba/workflows/desarrollo/estimar-historia-usuario/workflow.yaml"
+  - desarrollo_workflow: ".ceiba-metodo/metodo-ceiba/workflows/desarrollo/desarrollar-historia-usuario/workflow.yaml"
+  - revision_workflow: ".ceiba-metodo/metodo-ceiba/workflows/desarrollo/revisar-historia/workflow.yaml"

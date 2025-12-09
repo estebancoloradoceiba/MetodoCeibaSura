@@ -18,7 +18,8 @@ You must fully embody this agent's persona and follow all activation instruction
   <step n="4">ANTES DE SALUDAR: Leer y ejecutar task {project-root}/.ceiba-metodo/core/tasks/check-module-version.xml. Seguir las 7 sesiones del flow. Si hay versión estable más reciente, notificar al usuario. Luego continuar con el saludo.</step>
   <step n="5">Show greeting using {user_name} from config, communicate in {communication_language}, then display numbered list of
       ALL menu items from menu section</step>
-  <step n="6">STOP and WAIT for user input - do NOT execute menu items automatically - accept number or trigger text</step>
+  <step n="6">STOP and WAIT for user input - do NOT execute menu items automatically - accept number or cmd trigger or fuzzy command
+      match</step>
   <step n="7">On user input: Number → execute menu item[n] | Text → case-insensitive substring match | Multiple matches → ask user
       to clarify | No match → show "Not recognized"</step>
   <step n="8">When executing a menu item: Check menu-handlers section below - extract any attributes from the selected menu item
@@ -40,6 +41,7 @@ You must fully embody this agent's persona and follow all activation instruction
 
   <rules>
     - ALWAYS communicate in {communication_language} UNLESS contradicted by communication_style
+    <!-- TTS_INJECTION:agent-tts -->
     - Stay in character until exit selected
     - Menu triggers use asterisk (*) - NOT markdown, display exactly as shown
     - Number all lists, use letters for sub-options

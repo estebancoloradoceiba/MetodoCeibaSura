@@ -1,0 +1,59 @@
+# Ciclo Completo de Incidente - Meta Workflow Configuration
+name: "ciclo-completo-incidente"
+description: "Meta-workflow que ejecuta el ciclo técnico de resolución de incidentes: diagnóstico, análisis arquitectónico (opcional), refinamiento, estimación (opcional), desarrollo, revisión y post-mortem. Se adapta automáticamente según la prioridad del incidente (P0-P1 crítico vs P2-P4 normal). Requiere que el incidente haya sido previamente recibido y clasificado por el PO."
+author: "Método Ceiba"
+version: "1.0.0"
+
+# Critical variables load from config_source
+config_source: "{project-root}/.ceiba-metodo/metodo-ceiba/config.yaml"
+output_folder: "{config_source}:output_folder"
+user_name: "{config_source}:user_name"
+communication_language: "{config_source}:communication_language"
+document_output_language: "{config_source}:document_output_language"
+date: system-generated
+
+# Incident locations
+incident_location: "{config_source}:incident_location"
+
+# Module path and component files
+installed_path: "{project-root}/.ceiba-metodo/metodo-ceiba/workflows/soporte/ciclo-completo-incidente"
+template: false # Action workflow - orchestrates other workflows
+instructions: "{installed_path}/instructions.md"
+
+# Variables used in workflow
+variables:
+  incident_number: "prompt" # Número del incidente a procesar (ej: 2025-01-15-login-error)
+
+  # Workflow paths - apuntan a los workflows que se invocarán
+  diagnosticar_workflow: "{project-root}/.ceiba-metodo/metodo-ceiba/workflows/soporte/diagnosticar-error/workflow.yaml"
+  analisis_workflow: "{project-root}/.ceiba-metodo/metodo-ceiba/workflows/arquitectura/analizar-disenar-historia-usuario/workflow.yaml"
+  refinamiento_workflow: "{project-root}/.ceiba-metodo/metodo-ceiba/workflows/desarrollo/refinamiento-tecnico/workflow.yaml"
+  estimacion_workflow: "{project-root}/.ceiba-metodo/metodo-ceiba/workflows/desarrollo/estimar-historia-usuario/workflow.yaml"
+  desarrollo_workflow: "{project-root}/.ceiba-metodo/metodo-ceiba/workflows/desarrollo/desarrollar-historia-usuario/workflow.yaml"
+  revision_workflow: "{project-root}/.ceiba-metodo/metodo-ceiba/workflows/desarrollo/revisar-historia/workflow.yaml"
+  postmortem_workflow: "{project-root}/.ceiba-metodo/metodo-ceiba/workflows/soporte/post-mortem/workflow.yaml"
+
+  # Execution control - determinado automáticamente por prioridad
+  incident_priority: "extracted" # P0, P1, P2, P3, P4 - extraído del incidente
+  flujo_critico: "auto" # true para P0-P1, false para P2-P4
+
+  # Control de fases opcionales
+  skip_analisis: "auto" # Calculado: true para P0-P1 y P2-P4 simples
+  skip_estimacion: "auto" # Calculado: true para P0-P1, opcional para P2-P4
+
+# Incident file that will be processed
+target_incident_file: "{incident_location}/{incident_number}.incident.md"
+
+# Web bundle configuration for deployment
+web_bundle_files:
+  - ".ceiba-metodo/metodo-ceiba/workflows/soporte/ciclo-completo-incidente/workflow.yaml"
+  - ".ceiba-metodo/metodo-ceiba/workflows/soporte/ciclo-completo-incidente/instructions.md"
+
+existing_workflows:
+  - diagnosticar_workflow: ".ceiba-metodo/metodo-ceiba/workflows/soporte/diagnosticar-error/workflow.yaml"
+  - analisis_workflow: ".ceiba-metodo/metodo-ceiba/workflows/arquitectura/analizar-disenar-historia-usuario/workflow.yaml"
+  - refinamiento_workflow: ".ceiba-metodo/metodo-ceiba/workflows/desarrollo/refinamiento-tecnico/workflow.yaml"
+  - estimacion_workflow: ".ceiba-metodo/metodo-ceiba/workflows/desarrollo/estimar-historia-usuario/workflow.yaml"
+  - desarrollo_workflow: ".ceiba-metodo/metodo-ceiba/workflows/desarrollo/desarrollar-historia-usuario/workflow.yaml"
+  - revision_workflow: ".ceiba-metodo/metodo-ceiba/workflows/desarrollo/revisar-historia/workflow.yaml"
+  - postmortem_workflow: ".ceiba-metodo/metodo-ceiba/workflows/soporte/post-mortem/workflow.yaml"

@@ -348,31 +348,41 @@ Tu respuesta:</ask>
 
 <mandate>SIEMPRE agregar como ÚLTIMA FASE:</mandate>
 
-<action>Crear Fase N (última): "QA y Deployment" con 3 componentes:</action>
+<action>Crear Fase N (última): "QA y Deployment"</action>
 
-<action>1. Componente "Code Quality" con tareas:</action>
-<action>   - Tarea: "Ejecutar revisión par en Diagnosticador"</action>
-<action>   - Tarea: "Resolver incidentes del Diagnosticador" (condicional)</action>
-<action>     * Subtarea: Revisar reporte de incidentes</action>
-<action>     * Subtarea: Aplicar correcciones necesarias</action>
+<critical>PRIORIDAD: Verificar si existe tabla DoD antes de agregar tareas manuales</critical>
 
-<action>2. Componente "Deployment DEV" con tareas:</action>
-<action>   - Tarea: "Crear Pull Request"</action>
-<action>     * Subtarea: Crear PR hacia rama develop/dev</action>
-<action>     * Subtarea: Asignar reviewers del equipo</action>
-<action>   - Tarea: "Ejecutar pipeline deployment DEV"</action>
-<action>     * Subtarea: Ejecutar pipeline de deployment</action>
-<action>     * Subtarea: Verificar deployment exitoso</action>
+<action>Intentar cargar tabla DoD desde: {dod_pivots_location}</action>
 
-<action>3. Componente "Testing Manual" con tareas:</action>
-<action>   - Tarea: "Diseñar set de pruebas manuales"</action>
-<action>     * Subtarea: Documentar casos de prueba por cada criterio de aceptación</action>
-<action>     * Subtarea: Preparar datos de prueba necesarios</action>
-<action>   - Tarea: "Ejecutar pruebas manuales"</action>
-<action>     * Subtarea: Validar cada criterio de aceptación en el ambiente DEV</action>
-<action>     * Subtarea: Reportar defectos encontrados si aplica</action>
+<check if="archivo DoD existe Y contiene tareas">
+    <critical>Usar EXCLUSIVAMENTE las tareas de la tabla DoD - NO modificar, agregar ni quitar ninguna</critical>
+    <action>Extraer SOLO la tabla "Definition of Done (Tareas Manuales Obligatorias)"</action>
+    <action>Para cada tarea en la tabla DoD:</action>
+    <action>  - Copiar nombre EXACTO de la tarea (textual, sin cambios)</action>
+    <action>  - Crear como tarea principal en Fase N</action>
+    <action>  - Marcar como MANUAL (no aplica Método Ceiba en estimación)</action>
+    <action>  - NO agregar subtareas, NO modificar descripción, NO inventar tareas adicionales</action>
+    <output>✅ Tareas manuales desde DoD: {{num_tareas_dod}}</output>
+</check>
 
-<critical>Estas tareas son MANUALES y NO automatizables por IA - marcar para que en estimación NO se aplique descuento Método Ceiba</critical>
+<check if="archivo DoD NO existe O está vacío">
+    <action>Usar tareas manuales DEFAULT con 3 componentes:</action>
+    
+    <action>1. Componente "Code Quality" con tareas:</action>
+    <action>   - Tarea: "Ejecutar revisión par en Diagnosticador"</action>
+    <action>   - Tarea: "Resolver incidentes del Diagnosticador" (condicional)</action>
+
+    <action>2. Componente "Deployment DEV" con tareas:</action>
+    <action>   - Tarea: "Crear Pull Request"</action>
+    <action>   - Tarea: "Ejecutar pipeline deployment DEV"</action>
+
+    <action>3. Componente "Testing Manual" con tareas:</action>
+    <action>   - Tarea: "Diseñar set de pruebas manuales"</action>
+    <action>   - Tarea: "Ejecutar pruebas manuales"</action>
+    <note>Usando tareas manuales default (DoD no configurado)</note>
+</check>
+
+<critical>TODAS las tareas de Fase N son MANUALES - marcar para que en estimación NO se aplique descuento Método Ceiba</critical>
 <note>El tiempo de estas tareas depende del tamaño y complejidad de la historia de usuario - ajustar nivel de detalle proporcionalmente</note>
 
 <mandate>Variables OBLIGATORIAS:</mandate>
@@ -382,7 +392,27 @@ Tu respuesta:</ask>
 
 </step>
 
-<step n="7" goal="Finalización y Validación">
+<step n="7" goal="Validación con Checklist de Reflexión">
+
+<critical>Ejecutar checklist ANTES de guardar el archivo</critical>
+
+<action>Cargar y ejecutar: {installed_path}/checklist.md</action>
+<action>Validar CADA item del checklist contra el refinamiento generado</action>
+
+<check if="algún item de 'Criterios de Fallo' está marcado">
+<action>HALT - Corregir issues identificados antes de continuar</action>
+<action>Volver al step correspondiente para corregir</action>
+</check>
+
+<check if="items incompletos en secciones principales">
+<action>Completar items faltantes o documentar justificación</action>
+</check>
+
+<output>✅ Checklist de reflexión validado</output>
+
+</step>
+
+<step n="8" goal="Finalización y Guardado">
 
 <action>Actualizar estado final de la historia</action>
 <action>Añadir nota de que está lista para estimate-story</action>
@@ -400,7 +430,7 @@ Tu respuesta:</ask>
 
 </step>
 
-<step n="8" goal="Entrega y Comunicación">
+<step n="9" goal="Entrega y Comunicación">
 
 <action>Mostrar resumen del refinamiento completado con:</action>
 <action>- Archivo actualizado</action>

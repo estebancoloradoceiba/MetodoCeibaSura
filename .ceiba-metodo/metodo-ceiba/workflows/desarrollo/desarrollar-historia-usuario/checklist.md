@@ -14,7 +14,7 @@ validation-rules:
 
 ## Completitud de Tareas
 
-- [ ] Todas las tareas y subtareas de esta historia están marcadas como completadas [x]
+- [ ] Todas las tareas y subtareas NO-MANUALES de esta historia están marcadas como completadas [x]
 - [ ] La implementación cumple con TODOS los criterios de aceptación de la historia
 
 ## Validación y Tests

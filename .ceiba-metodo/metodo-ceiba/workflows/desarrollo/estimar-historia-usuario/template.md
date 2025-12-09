@@ -20,13 +20,17 @@
 
 Estas tareas requieren intervención humana directa y no se benefician de la optimización por IA.
 
-| # | Tarea | Tiempo Estimado |
-|---|-------|-----------------|
+| # | Tarea | Tiempo Estimado | Fuente |
+|---|-------|-----------------|--------|
 {{#each tareas_manuales}}
-| {{numero}} | {{descripcion}} | {{tiempo_estimado}}h |
+| {{numero}} | {{descripcion}} | {{tiempo_estimado}}h | {{fuente}} |
 {{/each}}
 
 **Total Tareas Manuales:** {{total_tareas_manuales}}h
+
+**Leyenda fuentes:**
+- `pivote-dod`: Tiempo obtenido de tabla de Definition of Done preconfigurada
+- `estimacion`: Tiempo calculado usando método PERT
 
 {{/if}}
 

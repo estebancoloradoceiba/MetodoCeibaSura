@@ -16,6 +16,7 @@ installed_path: "{project-root}/.ceiba-metodo/metodo-ceiba/workflows/desarrollo/
 template: true
 instructions: "{installed_path}/instructions.md"
 template_file: "{installed_path}/template.md"
+checklist: "{installed_path}/checklist.md"
 
 # Variables used in workflow - resolved from config_source or prompted
 variables:

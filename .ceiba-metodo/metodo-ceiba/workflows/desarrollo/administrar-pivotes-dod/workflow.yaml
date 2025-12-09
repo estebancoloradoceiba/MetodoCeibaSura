@@ -1,0 +1,23 @@
+# Administrar Pivotes DoD - Workflow Configuration
+name: "administrar-pivotes-dod"
+description: "Crear, editar y calibrar la tabla de pivotes de estimación para tareas del Definition of Done"
+author: "juan"
+
+# Critical variables from config
+config_source: "{project-root}/.ceiba-metodo/metodo-ceiba/config.yaml"
+user_name: "{config_source}:user_name"
+communication_language: "{config_source}:communication_language"
+document_output_language: "{config_source}:document_output_language"
+date: system-generated
+
+# Module path and component files
+installed_path: "{project-root}/.ceiba-metodo/metodo-ceiba/workflows/desarrollo/administrar-pivotes-dod"
+template: true # Uses template to generate DoD pivots table
+template_file: "{installed_path}/template.md"
+instructions: "{installed_path}/instructions.md"
+validation: "{installed_path}/checklist.md"
+
+# Path to DoD pivots table
+dod_pivots_file: "{config_source}:dod_pivots_location"
+
+standalone: true

@@ -1,0 +1,29 @@
+# Validar Completitud PRD Workflow Configuration
+name: "validar-completitud-prd"
+description: "Validar completitud del PRD entregado por el proceso comercial o validar completitud de los requisitos de producto que se proporcionen con el objetivo de determinar la viabilidad de generar un definición de arquitectura tomando como base esta información."
+author: "Método Ceiba"
+
+# Critical variables load from config_source
+config_source: "{project-root}/.ceiba-metodo/metodo-ceiba/config.yaml"
+output_folder: "{config_source}:output_folder"
+user_name: "{config_source}:user_name"
+communication_language: "{config_source}:communication_language"
+document_output_language: "{config_source}:document_output_language"
+date: system-generated
+
+# Optional docs that if loaded on start to kickstart this workflow
+recommended_inputs:
+  - prd: "Documento de requisitos del producto con FR y NFR"
+  - brief_alcance: "resumen de necesidades del producto."
+  - epicas: "épicas con historias de usuario"
+
+# Module path and component files
+installed_path: "{project-root}/.ceiba-metodo/metodo-ceiba/workflows/arquitectura/validar-completitud-prd"
+template: "{installed_path}/template.md"
+instructions: "{installed_path}/instructions.md"
+validation: "{installed_path}/checklist.md"
+
+# Output configuration
+default_output_file: "{output_folder}/propuesta/04-arquitectura/reporte-validacion-completitud-prd.md"
+
+# Web bundle configuration

@@ -128,7 +128,7 @@ Modo: COMPONENTE POR COMPONENTE (pausará entre componentes para revisión)</out
 
 Re-ejecutar *revisar-historia para validar</output>
 
-<action>HALT</action>
+<goto step="6">Ir a completación final</goto>
 
 </step>
 
@@ -314,12 +314,9 @@ Estado: Lista para Revisión
 Tareas automatizadas: {{tareas_desarrollo_completadas}}/{{tareas_desarrollo_total}} ✅
 Tareas manuales pendientes: {{tareas_manuales_count}}
 
-🔍 SIGUIENTE PASO OBLIGATORIO:
-*revisar-historia
+</output>
 
-Tareas manuales (QA/Deployment) se ejecutan DESPUÉS del peer review.</output>
 
-<action>HALT</action>
 
 </step>
 
@@ -343,10 +340,7 @@ Desarrollo completado: {date}
 
 📁 Actualizado: {dev_story_location}/{story_number}.story.md
 
-🎯 PRÓXIMOS PASOS:
-1. Revisar código implementado
-2. Validar funcionamiento en ambiente local
-3. Ejecutar pruebas manuales si aplica
+
 
 </output>
 

@@ -18,7 +18,8 @@ You must fully embody this agent's persona and follow all activation instruction
   <step n="4">ANTES DE SALUDAR: Leer y ejecutar task {project-root}/.ceiba-metodo/core/tasks/check-module-version.xml. Seguir las 7 sesiones del flow. Si hay versión estable más reciente, notificar al usuario. Luego continuar con el saludo.</step>
   <step n="5">Show greeting using {user_name} from config, communicate in {communication_language}, then display numbered list of
       ALL menu items from menu section</step>
-  <step n="6">STOP and WAIT for user input - do NOT execute menu items automatically - accept number or trigger text</step>
+  <step n="6">STOP and WAIT for user input - do NOT execute menu items automatically - accept number or cmd trigger or fuzzy command
+      match</step>
   <step n="7">On user input: Number → execute menu item[n] | Text → case-insensitive substring match | Multiple matches → ask user
       to clarify | No match → show "Not recognized"</step>
   <step n="8">When executing a menu item: Check menu-handlers section below - extract any attributes from the selected menu item
@@ -40,6 +41,7 @@ You must fully embody this agent's persona and follow all activation instruction
 
   <rules>
     - ALWAYS communicate in {communication_language} UNLESS contradicted by communication_style
+    <!-- TTS_INJECTION:agent-tts -->
     - Stay in character until exit selected
     - Menu triggers use asterisk (*) - NOT markdown, display exactly as shown
     - Number all lists, use letters for sub-options
@@ -55,12 +57,14 @@ You must fully embody this agent's persona and follow all activation instruction
   </persona>
   <menu>
     <item cmd="*help">Show numbered menu</item>
-    <item cmd="*crear-arquitectura" workflow="{project-root}/.ceiba-metodo/metodo-ceiba/workflows/arquitectura/crear-arquitectura-solucion/workflow.yaml">Crear arquitectura completa desde requerimientos para proyectos nuevos (no para sistemas existentes)</item>
+    <item cmd="*crear-arquitectura-solucion" workflow="{project-root}/.ceiba-metodo/metodo-ceiba/workflows/arquitectura/crear-arquitectura-solucion/workflow.yaml">Crear arquitectura de solución desde requerimientos de producto para proyectos nuevos (no para sistemas existentes)</item>
+    <item cmd="*crear-arquitectura-detallada" workflow="{project-root}/.ceiba-metodo/metodo-ceiba/workflows/arquitectura/crear-arquitectura-detallada/workflow.yaml">Crear arquitectura detallada partiendo de una arquitectura de solución construida (no para sistemas existentes)</item>
     <item cmd="*analisis-y-diseno" workflow="{project-root}/.ceiba-metodo/metodo-ceiba/workflows/arquitectura/analizar-disenar-historia-usuario/workflow.yaml">realizar análisis arquitectónico y diseño de una historia de usuario O incidente específico</item>
     <item cmd="*documentar-arquitectura-base" workflow="{project-root}/.ceiba-metodo/metodo-ceiba/workflows/arquitectura/documentar-arquitectura-base/workflow.yaml">Generar documentación de arquitectura base para proyectos existentes</item>
     <item cmd="*documentar-componente" workflow="{project-root}/.ceiba-metodo/metodo-ceiba/workflows/arquitectura/documentar-componente/workflow.yaml">Generar documentación de un componente específico del sistema</item>
     <item cmd="*documentar-flujo-negocio" workflow="{project-root}/.ceiba-metodo/metodo-ceiba/workflows/arquitectura/documentar-flujo-negocio/workflow.yaml">documentar flujos de trabajo críticos con diagramas de secuencia</item>
     <item cmd="*generar-estandares-codigo" workflow="{project-root}/.ceiba-metodo/metodo-ceiba/workflows/arquitectura/generar-estandares-codigo/workflow.yaml">Crear estándares de código basados en análisis del proyecto</item>
+    <item cmd="*administrar-pivotes-dod" workflow="{project-root}/.ceiba-metodo/metodo-ceiba/workflows/desarrollo/administrar-pivotes-dod/workflow.yaml">Gestionar tabla de pivotes DoD y técnicos para estimación</item>
     <item cmd="*explorar-proyecto" workflow="{project-root}/.ceiba-metodo/metodo-ceiba/workflows/arquitectura/explorar-proyecto/workflow.yaml">Explorar y entender cualquier aspecto del proyecto mediante búsqueda inteligente</item>
     <item cmd="*diagnosticar" workflow="{project-root}/.ceiba-metodo/metodo-ceiba/workflows/soporte/diagnosticar-error/workflow.yaml">Diagnosticar causa raíz de error usando metodología 5 Whys</item>
     <item cmd="*documentar-incidente" workflow="{project-root}/.ceiba-metodo/metodo-ceiba/workflows/soporte/post-mortem/workflow.yaml">Post-mortem de incidente y evaluación para Knowledge Base</item>
