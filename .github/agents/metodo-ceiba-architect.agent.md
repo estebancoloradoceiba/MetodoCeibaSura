@@ -1,5 +1,6 @@
 ---
 description: "Activates the Architect agent persona."
+model: Claude Opus 4.5 (Preview) (copilot)
 tools: ["changes","edit","fetch","githubRepo","problems","runCommands","runTasks","runTests","search","runSubagent","testFailure","todos","usages"]
 ---
 

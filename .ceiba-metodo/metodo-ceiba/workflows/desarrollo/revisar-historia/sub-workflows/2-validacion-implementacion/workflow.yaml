@@ -1,0 +1,28 @@
+# Validación de Implementación - Sub-workflow Configuration
+name: "validacion-implementacion"
+description: "Consolida verificación de criterios de aceptación y coherencia arquitectónica"
+author: "Método Ceiba - Peer Reviewer"
+version: "1.0.0"
+
+# Parent workflow
+parent_workflow: "{project-root}/.ceiba-metodo/metodo-ceiba/workflows/desarrollo/revisar-historia/workflow.yaml"
+standalone: false
+
+# Critical variables inherited from parent
+config_source: "{project-root}/.ceiba-metodo/metodo-ceiba/config.yaml"
+communication_language: "{config_source}:communication_language"
+document_output_language: "{config_source}:document_output_language"
+
+# Module path
+installed_path: "{project-root}/.ceiba-metodo/metodo-ceiba/workflows/desarrollo/revisar-historia/sub-workflows/2-validacion-implementacion"
+instructions: "{installed_path}/instructions.md"
+
+required_inputs:
+  - story_context
+  - staged_files
+  - manual_context
+
+outputs:
+  - criterios_ac: Cobertura de criterios de aceptación
+  - coherencia: Issues de coherencia arquitectónica
+  - findings: Lista consolidada de hallazgos

@@ -1,0 +1,43 @@
+# Decision Outcome - Sub-workflow Configuration
+name: "decision-outcome"
+description: "Evalúa hallazgos agregados y estadísticas aplicando reglas de decisión automáticas para determinar outcome: Aprobado, Aprobado con Observaciones, Cambios Solicitados o Bloqueado"
+author: "Método Ceiba - Peer Reviewer"
+version: "2.0.0"
+
+# Parent workflow
+parent_workflow: "{project-root}/.ceiba-metodo/metodo-ceiba/workflows/desarrollo/revisar-historia/workflow.yaml"
+standalone: false
+
+# Critical variables inherited from parent
+config_source: "{project-root}/.ceiba-metodo/metodo-ceiba/config.yaml"
+user_name: "{config_source}:user_name"
+communication_language: "{config_source}:communication_language"
+document_output_language: "{config_source}:document_output_language"
+
+# Module path
+installed_path: "{project-root}/.ceiba-metodo/metodo-ceiba/workflows/desarrollo/revisar-historia/sub-workflows/5-decision-outcome"
+instructions: "{installed_path}/instructions.md"
+
+# Variables received from parent
+variables:
+  story_context: "passed-from-parent" # {story_number, story_path, status, criterios_aceptacion[], tasks[]}
+  deduplicated_findings: "passed-from-parent" # Array de hallazgos únicos normalizados
+  statistics: "passed-from-parent" # Objeto con estadísticas agregadas
+  manual_context: "passed-from-parent" # Contexto técnico (stack, docs, standards)
+  warnings: "passed-from-parent" # Array de warnings de sub-workflows que fallaron
+
+# Output: Escribe directamente al story file (no JSON intermedio)
+output_format: "markdown_append"
+output_target: "{story_path}"
+
+# Execution hints
+execution_hints:
+  interactive: false # Decisión AUTOMÁTICA basada en reglas - NO requiere input del usuario
+  autonomous: true # Se ejecuta sin intervención humana
+  validation_required: false
+
+tags:
+  - automatic-review
+  - decision
+  - rules-based
+  - final-outcome

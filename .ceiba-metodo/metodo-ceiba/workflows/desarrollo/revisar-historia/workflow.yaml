@@ -1,53 +1,121 @@
-# Revisar Historia - Workflow Configuration
+# Revisar Historia - Workflow Configuration (Meta-Workflow)
 name: "revisar-historia"
-description: "Realizar revisión exhaustiva de código por peer reviewer senior, validando seguridad, calidad, arquitectura, tests y criterios de aceptación. Genera reporte estructurado con hallazgos y action items."
+description: "Meta-workflow de revisión de código tipo peer review. Coordina 5 sub-workflows consolidados para validar implementación, seguridad, calidad, arquitectura y tests. Genera reporte estructurado en Markdown."
 author: "Método Ceiba - Peer Reviewer"
-version: "1.0.0"
+version: "4.0.0"
+
+# Meta-workflow configuration
+meta_workflow: true
+standalone: true
 
 # Critical variables load from config_source
 config_source: "{project-root}/.ceiba-metodo/metodo-ceiba/config.yaml"
 output_folder: "{config_source}:output_folder"
 user_name: "{config_source}:user_name"
+user_skill_level: "{config_source}:user_skill_level"
 communication_language: "{config_source}:communication_language"
 document_output_language: "{config_source}:document_output_language"
 date: system-generated
 
 # Story and Architecture locations
 dev_story_location: "{config_source}:dev_story_location"
-incident_location: "{config_source}:incident_location"
 architecture_sharded_location: "{config_source}:architecture_sharded_location"
-architecture_file: "{config_source}:architecture_file"
 
 # Module path and component files
 installed_path: "{project-root}/.ceiba-metodo/metodo-ceiba/workflows/desarrollo/revisar-historia"
-template: true # This workflow uses template-based output
-instructions: "{installed_path}/instructions.md"
-template_file: "{installed_path}/template.md"
+template: "{installed_path}/template.md"
+instructions: "{installed_path}/instructions.xml"
 validation: "{installed_path}/checklist.md"
+
+# Input file patterns with load strategies (BMM standard)
+input_file_patterns:
+  architecture:
+    description: "Documentos de arquitectura para contexto técnico"
+    sharded_index: "{architecture_sharded_location}/index.md"
+    load_strategy: "INDEX_GUIDED"
+    max_tokens: 8000
+  story:
+    description: "Archivo de historia a revisar"
+    pattern: "{dev_story_location}/**/story-*.md"
+    load_strategy: "FULL_LOAD"
 
 # Variables used in workflow
 variables:
-  story_number: "prompt" # Número de la historia a revisar (ej: 6 para 6.nombre.story.md)
-
-  # Review configuration
+  story_number: "prompt"
   allow_status_values: ["Lista para Revisión", "Ready for Review", "Desarrollo Completado", "En Revisión"]
-  update_status_on_result: true
 
-  # Architecture and standards docs
-  arch_docs_file_names: ["index.md", "coding-standards.md", "architecture-*.md", "component-*.md", "flujo-*.md", "flow-*.md"]
-  coding_standards_file: "coding-standards.md"
+# Sub-workflows consolidados (5)
+sub_workflows:
+  - id: "1-contexto-tecnico"
+    path: "{installed_path}/sub-workflows/1-contexto-tecnico/"
+    type: "prerequisite"
+    
+  - id: "2-validacion-implementacion"
+    path: "{installed_path}/sub-workflows/2-validacion-implementacion/"
+    type: "consolidated"
+    consolidates: ["criterios-aceptacion", "coherencia-general"]
+    
+  - id: "3-analisis-codigo"
+    path: "{installed_path}/sub-workflows/3-analisis-codigo/"
+    type: "consolidated"
+    consolidates: ["seguridad", "backend", "frontend"]
+    
+  - id: "4-validacion-testing"
+    path: "{installed_path}/sub-workflows/4-validacion-testing/"
+    type: "consolidated"
+    consolidates: ["pruebas-unitarias", "pruebas-integracion"]
+    
+  - id: "5-decision-outcome"
+    path: "{installed_path}/sub-workflows/5-decision-outcome/"
+    type: "final"
+
+# Required files validation
+required_files:
+  - "{installed_path}/instructions.xml"
+  - "{installed_path}/checklist.md"
+  - "{installed_path}/sub-workflows/1-contexto-tecnico/workflow.yaml"
+  - "{installed_path}/sub-workflows/2-validacion-implementacion/workflow.yaml"
+  - "{installed_path}/sub-workflows/3-analisis-codigo/workflow.yaml"
+  - "{installed_path}/sub-workflows/4-validacion-testing/workflow.yaml"
+  - "{installed_path}/sub-workflows/5-decision-outcome/workflow.yaml"
+
+validation_on_load: true
 
 # Story file will be modified in place
-default_output_file: "{dev_story_location}/{story_number}.story.md"
-output_mode: "append" # Append new section "Revisión de Código (Peer Review)" at the end
+default_output_file: "{story_path}"
+output_mode: "append"
 
-# Execution hints
+# ============================================================================
+# MODO AUTOMÁTICO - EJECUCIÓN COMPLETA SIN PAUSAS
+# ============================================================================
 execution_hints:
-  interactive: false # Ejecuta en modo #yolo a menos que encuentre problemas
-  autonomous: true # Puede ejecutarse sin intervención si la historia está completa
-  validation_required: true # Validación del checklist es obligatoria
+  interactive: false
+  autonomous: true
+  validation_required: true
+  write_immediately: true
 
-# Tags for categorization
+# Tracking de ejecución
+execution_tracking:
+  require_all_subworkflows: true
+  minimum_subworkflows: 5
+  halt_on_missing: true
+
+# Tasks XML para diagnósticos (usados por sub-workflows consolidados)
+diagnostic_tasks:
+  location: "{installed_path}/tasks"
+  tasks:
+    - id: "seguridad"
+      task_file: "diagnostic-seguridad.xml"
+    - id: "backend"
+      task_file: "diagnostic-backend.xml"
+    - id: "frontend"
+      task_file: "diagnostic-frontend.xml"
+    - id: "unit-tests"
+      task_file: "diagnostic-unit-tests.xml"
+    - id: "integration-tests"
+      task_file: "diagnostic-integration-tests.xml"
+
+# Tags
 tags:
   - code-review
   - quality-assurance
@@ -56,9 +124,15 @@ tags:
   - metodo-ceiba
   - development
 
+# Tools required
+tools:
+  - "get_changed_files"
+
 # Dependencies
 dependencies:
   required_workflows:
-    - "desarrollar-historia-usuario" # La historia debe estar implementada primero
+    - "desarrollar-historia-usuario"
   optional_workflows:
-    - "refinamiento-tecnico" # Mejora la revisión si existe refinamiento previo
+    - "refinamiento-tecnico"
+
+# Web bundle configuration

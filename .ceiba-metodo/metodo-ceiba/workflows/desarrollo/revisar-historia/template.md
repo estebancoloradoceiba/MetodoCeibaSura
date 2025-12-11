@@ -1,55 +1,43 @@
+# Template: Revisión de Código (Peer Review)
+
+<critical>Este template se APPENDA al archivo de historia existente, NO crea un archivo nuevo</critical>
+<critical>Las variables se resuelven desde los resultados de los 5 sub-workflows</critical>
+
+---
+
 ## Revisión de Código (Peer Review)
 
-**Revisor**: {{reviewer_name}}  
-**Fecha**: {{review_date}}  
-**Resultado**: {{review_outcome}}
+**Revisor:** {{user_name}}
+**Fecha:** {{date}}
+**Decisión:** {{outcome}}
 
----
+### Resumen Ejecutivo
 
-### Resumen
+| Métrica | Valor |
+|---------|-------|
+| Hallazgos ALTA | {{stats_alta}} |
+| Hallazgos MEDIA | {{stats_media}} |
+| Hallazgos BAJA | {{stats_baja}} |
+| ACs Cubiertos | {{ac_covered}}/{{ac_total}} |
 
-{{summary}}
+### Hallazgos por Categoría
 
----
+#### Seguridad
+{{tabla_seguridad}}
 
-### Hallazgos
+#### Backend  
+{{tabla_backend}}
 
-{{#if has_findings}}
-{{#each findings}}
-- **[{{severity}}]** {{description}} en `{{file_path}}:{{line_number}}`
-  - **Problema**: {{issue}}
-  - **Solución**: {{solution}}
+#### Frontend
+{{tabla_frontend}}
 
-{{/each}}
-{{else}}
-✅ No se encontraron problemas - Código cumple con estándares de calidad.
-{{/if}}
-
----
-
-### Cobertura de Criterios de Aceptación
-
-{{ac_coverage_summary}}
-
----
-
-### Notas de Seguridad
-
-{{security_notes}}
-
----
+#### Testing
+{{tabla_testing}}
 
 ### Acciones Requeridas
 
-{{#if has_action_items}}
-{{#each action_items}}
-- [ ] **[Peer-Review][{{severity}}]** {{description}} ({{reference}})
-{{/each}}
-{{else}}
-✅ No hay correcciones pendientes
-{{/if}}
+{{lista_action_items}}
 
----
+### Próximos Pasos
 
-**Próximos Pasos**: {{next_steps}}
-
+{{next_steps}}

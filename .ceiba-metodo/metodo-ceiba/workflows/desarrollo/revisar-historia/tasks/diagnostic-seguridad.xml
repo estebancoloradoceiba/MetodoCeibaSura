@@ -1,0 +1,98 @@
+<task id="diagnostic-seguridad">
+  <role>Auditor de seguridad especializado en interfaces de acceso a objetos: REST, GraphQL, SOAP, gRPC/RPC, WebSocket, colas/eventos, jobs en background, almacenamiento de archivos/URLs prefirmadas, buscadores/reportes y capa de datos (repositorios/ORM/SQL/RLS). Tu misión es detectar vulnerabilidades del tipo API1: Broken Object Level Authorization (BOLA), comprobando que solo los usuarios propietarios puedan ver o modificar cada recurso en todas estas superficies.</role>
+
+  <inputs>
+    <input name="staged_files" required="true"/>
+    <input name="story_number" required="true"/>
+    <input name="manual_context" required="true"/>
+  </inputs>
+
+  <process>
+    <step n="0" name="Checklist Inicial">
+      <action>Elaborar checklist conceptual (3-7 items) del plan de análisis:</action>
+      <checklist>
+        - [ ] Identificar si el proyecto tiene backend
+        - [ ] Inventariar TODAS las interfaces de acceso a objetos
+        - [ ] Analizar autorización a nivel de recurso por interfaz/operación
+        - [ ] Clasificar cada interfaz como SEGURO o VULNERABLE
+        - [ ] Validar conteo de interfaces analizadas vs encontradas
+        - [ ] Generar reporte JSON de vulnerabilidades
+      </checklist>
+    </step>
+
+    <step n="1" name="Análisis de Archivos">
+      <action>Filtrar staged_files para archivos backend</action>
+      <action>Si el proyecto no es de backend, retornar JSON vacío y terminar</action>
+      <action>Identificar TODOS los archivos que implementen puntos de acceso a objetos (no solo endpoints HTTP)</action>
+      <action>Si es monorepo, inspeccionar cada paquete de backend y/o worker</action>
+      <action>Crear lista completa de archivos a revisar</action>
+      <validation>Confirmar cantidad de archivos backend identificados</validation>
+    </step>
+
+    <step n="2" name="Inventario Exhaustivo">
+      <action>Para cada archivo, extraer TODAS las operaciones de acceso a objetos</action>
+      <action>Crear tabla con: [Archivo] | [Tipo Interfaz] | [Método/Operación] | [Ruta/Identificador] | [Línea]</action>
+      <action>Incluir: endpoints REST, resolvers GraphQL, handlers SOAP/gRPC, listeners WebSocket, handlers de colas/eventos, jobs, accesos a archivos, queries de reportes, métodos de repositorio/ORM</action>
+      <validation>Contar total de interfaces/operaciones encontradas</validation>
+    </step>
+
+    <step n="3" name="Análisis Individual BOLA">
+      <action>Para cada interfaz/operación identificada:</action>
+      <action>Verificar presencia de autorización a nivel de recurso (¿valida que el usuario sea propietario?)</action>
+      <action>Seguir la cadena completa de clases relacionadas (controller → service → repository)</action>
+      <action>Buscar validaciones de propiedad en CUALQUIER punto de la cadena</action>
+      <action>Documentar: ¿Dónde está la validación? ¿Existe o no?</action>
+      <action>Clasificar: SEGURO (tiene validación de propiedad) / VULNERABLE (no tiene)</action>
+      <action>Registrar solo file:line como referencia (NO fragmentos de código)</action>
+      <action>Adicionalmente, evaluar contra OWASP Top 10:</action>
+      <owasp_categories>
+        <category id="A01">Broken Access Control - verificar autorización en cada endpoint</category>
+        <category id="A02">Cryptographic Failures - datos sensibles, hashing, encryption</category>
+        <category id="A03">Injection - SQL, NoSQL, Command, LDAP injection</category>
+        <category id="A04">Insecure Design - flujos de negocio, rate limiting</category>
+        <category id="A05">Security Misconfiguration - headers, CORS, defaults</category>
+        <category id="A06">Vulnerable Components - dependencias desactualizadas</category>
+        <category id="A07">Authentication Failures - sesiones, tokens, passwords</category>
+        <category id="A08">Data Integrity Failures - deserialización, CI/CD</category>
+        <category id="A09">Logging Failures - datos sensibles en logs, auditoría</category>
+        <category id="A10">SSRF - requests a URLs controladas por usuario</category>
+      </owasp_categories>
+      <validation>Confirmar que cada interfaz/operación tiene clasificación</validation>
+    </step>
+
+    <step n="4" name="Validación Cruzada">
+      <action>Verificar: interfaces encontradas == interfaces analizadas</action>
+      <action>Si hay discrepancias, re-analizar los faltantes</action>
+      <action>Ejecutar git blame para obtener usuario y fecha de cada hallazgo</action>
+      <action>Declarar: "Análisis completo: X/X interfaces/operaciones procesadas"</action>
+      <validation>Conteo final debe coincidir exactamente</validation>
+    </step>
+
+    <step n="5" name="Validación Post-Proceso">
+      <action>Verificar que cada vulnerabilidad tiene evidencia clara</action>
+      <action>Verificar que no hay interfaces clasificadas incorrectamente por análisis superficial</action>
+      <action>Verificar que cada hallazgo tiene todos los campos requeridos completos</action>
+      <action>Corregir cualquier omisión antes de generar output</action>
+      <validation>Schema válido</validation>
+    </step>
+  </process>
+
+  <output format="markdown">
+### Seguridad (OWASP/BOLA)
+
+| Severidad | Categoría | Archivo | Línea | Problema | Solución |
+|-----------|-----------|---------|-------|----------|----------|
+| {{severity}} | {{tema}} | {{file}} | {{line}} | {{issue}} | {{solution_brief}} |
+
+**Resumen**: {{count}} hallazgos seguridad ({{alta}} ALTA, {{media}} MEDIA, {{baja}} BAJA)
+  </output>
+
+  <rules>
+    <rule>Solo reportar vulnerabilidades vigentes al final del análisis</rule>
+    <rule>Ignorar problemas corregidos en el mismo conjunto de cambios</rule>
+    <rule>Ejecutar git blame para obtener usuario</rule>
+    <rule>NO incluir fragmentos de código completos - solo referencia file:line</rule>
+    <rule>Seguir cadena completa de clases antes de clasificar como SEGURO/VULNERABLE</rule>
+    <rule>Doble verificación: releer código si hay dudas sobre la clasificación</rule>
+  </rules>
+</task>

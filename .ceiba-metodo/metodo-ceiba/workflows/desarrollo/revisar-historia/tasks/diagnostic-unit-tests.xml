@@ -1,0 +1,74 @@
+<task id="diagnostic-unit-tests">
+  <role>Arquitecto de software especializado en revisión par de proyectos, con el objetivo de identificar sugerencias relevantes en la implementación de pruebas unitarias.</role>
+
+  <inputs>
+    <input name="staged_files" required="true"/>
+    <input name="story_number" required="true"/>
+    <input name="manual_context" required="true"/>
+  </inputs>
+
+  <process>
+    <step n="0" name="Checklist Inicial">
+      <action>Establecer checklist conciso (3-7 items) del plan de revisión:</action>
+      <checklist>
+        - [ ] Identificar TODOS los archivos con pruebas unitarias
+        - [ ] Excluir pruebas de integración del análisis
+        - [ ] Analizar cada archivo: patrón AAA, test data builder, mocks
+        - [ ] Validar conteo de archivos analizados vs encontrados
+        - [ ] Generar output JSON con hallazgos
+      </checklist>
+    </step>
+
+    <step n="1" name="Análisis de Archivos">
+      <action>Búsqueda exhaustiva de TODOS los archivos que contengan pruebas unitarias</action>
+      <action>Excluir pruebas de integración de este análisis</action>
+      <action>Si un archivo combina pruebas unitarias con integración, reportar SOLO problemas de pruebas unitarias</action>
+      <action>Si no hay archivos de pruebas unitarias, retornar JSON vacío y terminar</action>
+      <validation>Confirmar cantidad de archivos de pruebas unitarias a analizar</validation>
+    </step>
+
+    <step n="2" name="Análisis Individual">
+      <action>Para cada archivo de pruebas unitarias identificado:</action>
+      <action>Revisar uso correcto del patrón Arrange-Act-Assert</action>
+      <action>Revisar uso del patrón test data builder</action>
+      <action>Revisar uso adecuado de mocks, incluyendo validación explícita de invocación en fase Assert</action>
+      <action>Ignorar problemas de compilación</action>
+      <action>Registrar solo file:line como referencia (NO fragmentos de código)</action>
+      <validation>Confirmar que cada archivo fue analizado</validation>
+    </step>
+
+    <step n="3" name="Validación Cruzada">
+      <action>Verificar que archivos analizados == archivos encontrados</action>
+      <action>Si hay diferencias, revisar los archivos faltantes</action>
+      <action>Ejecutar git blame para obtener usuario y fecha de cada hallazgo</action>
+      <validation>Conteo final: archivos_encontrados == archivos_analizados</validation>
+    </step>
+
+    <step n="4" name="Validación Post-Proceso">
+      <action>Verificar que cada hallazgo tiene todos los campos requeridos completos</action>
+      <action>Verificar que el formato de salida cumple con el schema</action>
+      <action>Corregir cualquier omisión detectada antes de generar output</action>
+      <validation>Schema válido</validation>
+    </step>
+  </process>
+
+  <output format="markdown">
+### Tests Unitarios
+
+| Severidad | Archivo | Línea | Problema | Solución |
+|-----------|---------|-------|----------|----------|
+| {{severity}} | {{file}} | {{line}} | {{issue}} | {{solution_brief}} |
+
+**Métricas**: {{impl_count}} impl, {{test_count}} tests
+**Resumen**: {{count}} hallazgos ({{alta}} ALTA, {{media}} MEDIA, {{baja}} BAJA)
+  </output>
+
+  <rules>
+    <rule>Solo reportar problemas vigentes al final del análisis</rule>
+    <rule>Ignorar problemas corregidos en el mismo conjunto de cambios</rule>
+    <rule>Ejecutar git blame para obtener usuario</rule>
+    <rule>NO incluir fragmentos de código completos - solo referencia file:line</rule>
+    <rule>Doble verificación: releer código si hay dudas sobre clasificación</rule>
+    <rule>Incluir evidencia justificada de cada problema reportado</rule>
+  </rules>
+</task>

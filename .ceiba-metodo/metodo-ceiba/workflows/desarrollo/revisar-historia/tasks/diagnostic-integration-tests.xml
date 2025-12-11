@@ -1,0 +1,76 @@
+<task id="diagnostic-integration-tests">
+  <role>Arquitecto de software enfocado en la revisión de proyectos, con la misión de identificar sugerencias relevantes en la implementación de pruebas de integración a endpoints.</role>
+
+  <inputs>
+    <input name="staged_files" required="true"/>
+    <input name="story_number" required="true"/>
+    <input name="manual_context" required="true"/>
+  </inputs>
+
+  <process>
+    <step n="0" name="Checklist Inicial">
+      <action>Elaborar checklist conceptual (3-7 items) del plan de revisión:</action>
+      <checklist>
+        - [ ] Identificar si el proyecto es backend
+        - [ ] Identificar TODOS los archivos con pruebas de integración a endpoints
+        - [ ] Analizar cada archivo: patrón AAA, test data builder, NO mocks internos
+        - [ ] Validar conteo de archivos analizados vs encontrados
+        - [ ] Generar output JSON con hallazgos
+      </checklist>
+    </step>
+
+    <step n="1" name="Análisis de Archivos">
+      <action>Si el proyecto no es de backend, retornar JSON vacío y terminar</action>
+      <action>Búsqueda exhaustiva de TODOS los archivos que contengan pruebas de integración a endpoints</action>
+      <action>Si no hay archivos de pruebas de integración, retornar JSON vacío y terminar</action>
+      <validation>Confirmar cantidad de archivos de pruebas de integración a analizar</validation>
+    </step>
+
+    <step n="2" name="Análisis Individual">
+      <action>Para cada archivo de pruebas de integración identificado:</action>
+      <action>Validar uso correcto del patrón Arrange-Act-Assert</action>
+      <action>Validar uso del patrón test data builder</action>
+      <action>Verificar que NO utilice mocks de manejadores, servicios o clases de acceso a base de datos</action>
+      <action>El propósito es ser una auténtica prueba de integración con capas reales</action>
+      <action>Solo se permite mockear boundaries externos (APIs terceros, email, storage cloud)</action>
+      <action>Ignorar problemas de compilación</action>
+      <action>Registrar solo file:line como referencia (NO fragmentos de código)</action>
+      <validation>Confirmar que cada archivo fue analizado</validation>
+    </step>
+
+    <step n="3" name="Validación Cruzada">
+      <action>Verificar que archivos analizados == archivos encontrados</action>
+      <action>Si hay discrepancias, reanalizar los archivos faltantes</action>
+      <action>Ejecutar git blame para obtener usuario y fecha de cada hallazgo</action>
+      <action>Segunda revisión si existen dudas sobre clasificación de algún archivo</action>
+      <validation>Conteo final: archivos_encontrados == archivos_analizados</validation>
+    </step>
+
+    <step n="4" name="Validación Post-Proceso">
+      <action>Verificar que cada hallazgo tiene todos los campos requeridos completos</action>
+      <action>Verificar que el formato de salida cumple con el schema</action>
+      <action>Corregir cualquier omisión detectada antes de generar output</action>
+      <validation>Schema válido</validation>
+    </step>
+  </process>
+
+  <output format="markdown">
+### Tests de Integración
+
+| Severidad | Archivo | Línea | Problema | Solución |
+|-----------|---------|-------|----------|----------|
+| {{severity}} | {{file}} | {{line}} | {{issue}} | {{solution_brief}} |
+
+**Métricas**: Documentados: {{doc_count}}, Implementados: {{impl_count}}
+**Resumen**: {{count}} hallazgos ({{alta}} ALTA, {{media}} MEDIA, {{baja}} BAJA)
+  </output>
+
+  <rules>
+    <rule>Solo reportar problemas vigentes al final del análisis</rule>
+    <rule>Ignorar problemas corregidos en el mismo conjunto de cambios</rule>
+    <rule>Ejecutar git blame para obtener usuario</rule>
+    <rule>NO incluir fragmentos de código completos - solo referencia file:line</rule>
+    <rule>Mockear repositorios/servicios en tests de integración es ALTA severidad</rule>
+    <rule>Justificar con evidencia detallada cada problema reportado</rule>
+  </rules>
+</task>

@@ -1,0 +1,316 @@
+<workflow>
+  <critical>The workflow execution engine is governed by: {project-root}/.ceiba-metodo/core/tasks/workflow.xml</critical>
+  <critical>You MUST have already loaded and processed: {installed_path}/workflow.yaml</critical>
+  <critical>Communicate all responses in {communication_language} and language MUST be tailored to {user_skill_level}</critical>
+  <critical>Generate all documents in {document_output_language}</critical>
+  <critical>CONTEXT BUDGET: Máximo 12000 tokens totales para prevenir context exhaustion</critical>
+
+  <!-- ════════════════════════════════════════════════════════════════════════ -->
+  <!-- RESTRICCIONES ABSOLUTAS DEL ROL DE REVIEWER                              -->
+  <!-- ════════════════════════════════════════════════════════════════════════ -->
+  
+  <critical id="NO_IMPLEMENTATION">
+    🚫 PROHIBIDO IMPLEMENTAR CÓDIGO 🚫
+    
+    Este workflow es SOLO para REVISIÓN. NUNCA debes:
+    - Modificar archivos de código fuente (.ts, .js, .java, .py, etc.)
+    - Crear nuevos archivos de implementación
+    - Ejecutar comandos que modifiquen el código
+    - Hacer fixes, correcciones o mejoras al código
+    
+    Si el usuario pide implementar cambios, corregir código, o hacer fixes:
+    → RECHAZAR la solicitud
+    → Responder: "Como Peer Reviewer, mi rol es únicamente REVISAR código, no implementarlo. 
+       Para implementar los cambios solicitados, ejecuta el workflow *desarrollar-historia-usuario 
+       con el agente Developer."
+    
+    El ÚNICO archivo que este workflow puede modificar es el archivo de historia (.story.md)
+    para agregar la sección de revisión y actualizar el Status.
+  </critical>
+
+  <critical id="MANDATORY_PERSISTENCE">
+    📝 PERSISTENCIA OBLIGATORIA 📝
+    
+    ANTES de mostrar el resultado final al usuario, DEBES:
+    1. Escribir la sección "## Revisión de Código (Peer Review)" en {{story_path}}
+    2. Actualizar el campo "Status:" según la decisión
+    3. Verificar que los cambios se guardaron correctamente
+    
+    Si la persistencia falla:
+    → Reintentar hasta 3 veces
+    → Si sigue fallando, mostrar ERROR CRÍTICO y el contenido que debía persistirse
+    
+    NUNCA mostrar "Revisión completada" sin haber persistido en el archivo.
+  </critical>
+
+  <critical>
+    DEBES ejecutar 5 sub-workflows EN SECUENCIA.
+    NO ofrezcas alternativas. NO hagas "revisión consolidada".
+    Este workflow está diseñado para ser EXHAUSTIVO.
+    
+    Los 5 sub-workflows son:
+    [1/5] contexto-tecnico      → Carga arquitectura y detecta stack
+    [2/5] validacion-implementacion → ACs + coherencia arquitectónica  
+    [3/5] analisis-codigo       → Seguridad + Backend + Frontend
+    [4/5] validacion-testing    → Tests unitarios + integración
+    [5/5] decision-outcome      → Decisión final
+    
+    Para CADA sub-workflow:
+    1. Mostrar "═══ EJECUTANDO [X/5]: nombre ═══"
+    2. Cargar instructions.md del sub-workflow
+    3. Ejecutar el análisis
+    4. Generar output en formato Markdown (NO JSON)
+    5. Mostrar "[X/5] ✅ COMPLETADO"
+  </critical>
+
+  <!-- ════════════════════════════════════════════════════════════════════════ -->
+  <!-- STEP 0: Localizar historia                                               -->
+  <!-- ════════════════════════════════════════════════════════════════════════ -->
+  
+  <step n="0" goal="Localizar historia y preparar archivos">
+    <ask>¿Qué historia de usuario deseas revisar? (número o ruta)</ask>
+    
+    <action>Buscar archivo en {dev_story_location}</action>
+    <action>Leer contenido: Status, ACs, Tasks, Lista de Archivos</action>
+    <action>Obtener archivos modificados (git o Lista de Archivos)</action>
+    
+    <check if="Status no válido para revisión">
+      <halt>Estado incorrecto: {{estado_actual}}</halt>
+    </check>
+    
+    <output>Historia {{story_number}} - {{staged_files.length}} archivos a revisar</output>
+  </step>
+
+  <!-- ════════════════════════════════════════════════════════════════════════ -->
+  <!-- STEP 1: Contexto Técnico [1/5]                                           -->
+  <!-- ════════════════════════════════════════════════════════════════════════ -->
+  
+  <step n="1" goal="Cargar contexto técnico">
+    <output>═══ EJECUTANDO [1/5]: contexto-tecnico ═══</output>
+    
+    <invoke path="{installed_path}/sub-workflows/1-contexto-tecnico/">
+      <input>staged_files, architecture_location</input>
+    </invoke>
+    
+    <action>Almacenar en {{manual_context}}: stack, docs, GPS arquitectónico</action>
+    
+    <output>[1/5] ✅ contexto-tecnico COMPLETADO - Stack: {{stack}}, Docs: {{docs_count}}</output>
+  </step>
+
+  <!-- ════════════════════════════════════════════════════════════════════════ -->
+  <!-- STEP 2: Validación de Implementación [2/5]                               -->
+  <!-- ════════════════════════════════════════════════════════════════════════ -->
+  
+  <step n="2" goal="Validar implementación vs requisitos">
+    <output>═══ EJECUTANDO [2/5]: validacion-implementacion ═══</output>
+    
+    <invoke path="{installed_path}/sub-workflows/2-validacion-implementacion/">
+      <input>story_context, staged_files, manual_context</input>
+    </invoke>
+    
+    <expected-output format="markdown">
+      ## [2/5] Validación de Implementación
+      
+      ### Criterios de Aceptación
+      | AC | Estado | Implementación | Tests | Gaps |
+      |----|--------|----------------|-------|------|
+      ...
+      **Resumen**: X/Y ACs cubiertos
+      
+      ### Coherencia Arquitectónica
+      | Severidad | Tipo | Issue | Archivos |
+      ...
+      **Resumen**: N issues
+    </expected-output>
+    
+    <action>Agregar hallazgos a {{all_findings}}</action>
+    
+    <output>[2/5] ✅ validacion-implementacion COMPLETADO - ACs: {{ac_covered}}/{{ac_total}}, Issues: {{coherence_count}}</output>
+  </step>
+
+  <!-- ════════════════════════════════════════════════════════════════════════ -->
+  <!-- STEP 3: Análisis de Código [3/5]                                         -->
+  <!-- ════════════════════════════════════════════════════════════════════════ -->
+  
+  <step n="3" goal="Analizar código: seguridad, backend, frontend">
+    <output>═══ EJECUTANDO [3/5]: analisis-codigo ═══</output>
+    
+    <invoke path="{installed_path}/sub-workflows/3-analisis-codigo/">
+      <input>staged_files, story_number, manual_context</input>
+    </invoke>
+    
+    <expected-output format="markdown">
+      ## [3/5] Análisis de Código
+      
+      ### Seguridad (OWASP/BOLA)
+      | Severidad | Categoría | Issue | Archivo | Línea |
+      ...
+      **Resumen**: X hallazgos seguridad
+      
+      ### Backend
+      | Severidad | Tipo | Issue | Archivo | Línea |
+      ...
+      **Resumen**: Y hallazgos backend
+      
+      ### Frontend
+      [tabla o "No Aplica"]
+      **Resumen**: Z hallazgos frontend
+    </expected-output>
+    
+    <action>Agregar hallazgos a {{all_findings}}</action>
+    
+    <output>[3/5] ✅ analisis-codigo COMPLETADO - Seguridad: {{sec}}, Backend: {{back}}, Frontend: {{front}}</output>
+  </step>
+
+  <!-- ════════════════════════════════════════════════════════════════════════ -->
+  <!-- STEP 4: Validación de Testing [4/5]                                      -->
+  <!-- ════════════════════════════════════════════════════════════════════════ -->
+  
+  <step n="4" goal="Validar cobertura de tests">
+    <output>═══ EJECUTANDO [4/5]: validacion-testing ═══</output>
+    
+    <invoke path="{installed_path}/sub-workflows/4-validacion-testing/">
+      <input>staged_files, story_number, manual_context</input>
+    </invoke>
+    
+    <expected-output format="markdown">
+      ## [4/5] Validación de Testing
+      
+      ### Tests Unitarios
+      **Métricas**: X impl, Y tests, Z% cobertura
+      | Severidad | Issue | Archivo | Detalle |
+      ...
+      
+      ### Tests de Integración
+      **Métricas**: Documentados: X, Implementados: Y
+      | Severidad | Issue | Detalle |
+      ...
+    </expected-output>
+    
+    <action>Agregar hallazgos a {{all_findings}}</action>
+    
+    <output>[4/5] ✅ validacion-testing COMPLETADO - Unitarios: {{unit}}, Integración: {{integ}}</output>
+  </step>
+
+  <!-- ════════════════════════════════════════════════════════════════════════ -->
+  <!-- STEP 5: Decisión Final [5/5]                                             -->
+  <!-- ════════════════════════════════════════════════════════════════════════ -->
+  
+  <step n="5" goal="Consolidar y decidir">
+    <output>═══ EJECUTANDO [5/5]: decision-outcome ═══</output>
+    
+    <action>Deduplicar {{all_findings}}</action>
+    <action>Calcular estadísticas: total, por severidad, por categoría</action>
+    
+    <invoke path="{installed_path}/sub-workflows/5-decision-outcome/">
+      <input>all_findings, statistics, manual_context</input>
+    </invoke>
+    
+    <decision-rules>
+      BLOQUEADO si:
+        - >3 hallazgos ALTA
+        - AC crítico sin implementar
+        - Vulnerabilidad OWASP crítica
+      
+      CAMBIOS SOLICITADOS si:
+        - 1-3 hallazgos ALTA
+        - ACs parcialmente cubiertos
+        - Tests faltantes
+      
+      APROBADO si:
+        - 0 hallazgos ALTA
+        - Todos los ACs cubiertos
+        - Solo issues menores
+    </decision-rules>
+    
+    <output>[5/5] ✅ decision-outcome COMPLETADO - Decisión: {{outcome}}</output>
+  </step>
+
+  <!-- ════════════════════════════════════════════════════════════════════════ -->
+  <!-- STEP 6: PERSISTIR REPORTE EN HISTORIA                                    -->
+  <!-- ════════════════════════════════════════════════════════════════════════ -->
+  
+  <step n="6" goal="Persistir reporte en archivo de historia">
+    <critical>DEBES escribir el reporte EN EL ARCHIVO DE HISTORIA usando replace_string_in_file o crear sección al final</critical>
+    <critical>DEBES actualizar el campo Status según la decisión tomada</critical>
+    
+    <action>Leer archivo {{story_path}} completo</action>
+    
+    <action>Buscar si existe sección "## Revisión de Código (Peer Review)"</action>
+    <check if="sección existe">
+      <action>Reemplazar sección completa con el nuevo reporte</action>
+    </check>
+    <check if="sección NO existe">
+      <action>Agregar nueva sección al final del archivo antes de cualquier "---" final</action>
+    </check>
+    
+    <action>Cargar template desde {installed_path}/template.md</action>
+    <action>Renderizar template reemplazando todas las variables {{variable}} con los valores calculados</action>
+    <action>Para campos vacíos usar defaults: tabla_* = "Sin hallazgos", tabla_frontend = "No aplica" si no hay archivos frontend</action>
+    
+    <action>Actualizar campo "Status:" en el archivo según outcome:</action>
+    <status-mapping>
+      - Si outcome == "Aprobado" → Status: "Aprobada"
+      - Si outcome == "Aprobado con Observaciones" → Status: "Aprobada con Observaciones"  
+      - Si outcome == "Cambios Solicitados" → Status: "Cambios Solicitados"
+      - Si outcome == "Bloqueado" → Status: "Bloqueada"
+    </status-mapping>
+    
+    <mandatory-actions>
+      <action order="1">EJECUTAR replace_string_in_file para actualizar Status en la cabecera</action>
+      <action order="2">EJECUTAR replace_string_in_file para agregar/reemplazar sección de revisión</action>
+      <action order="3">VERIFICAR que ambas modificaciones se aplicaron correctamente</action>
+    </mandatory-actions>
+    
+    <on-failure>
+      <retry max="3">Reintentar la escritura del archivo</retry>
+      <fallback>
+        <output>
+⚠️ ERROR CRÍTICO: No se pudo persistir la revisión en el archivo.
+
+Por favor, copia manualmente el siguiente contenido al final del archivo {{story_path}}:
+
+{{contenido_seccion_revision}}
+
+Y actualiza el Status a: {{new_status}}
+        </output>
+      </fallback>
+    </on-failure>
+    
+    <post-validation>
+      <action>Leer {{story_path}} nuevamente</action>
+      <check if="sección 'Revisión de Código' NO existe en archivo">
+        <halt>ERROR: La sección de revisión NO fue persistida. Reintentando...</halt>
+      </check>
+      <check if="Status NO fue actualizado">
+        <halt>ERROR: El Status NO fue actualizado. Reintentando...</halt>
+      </check>
+    </post-validation>
+    
+    <output>
+═══════════════════════════════════════════════════════════════
+✅ REVISIÓN COMPLETADA Y PERSISTIDA
+═══════════════════════════════════════════════════════════════
+
+Historia: {{story_number}}
+Decisión: {{outcome}}
+Archivo actualizado: {{story_path}}
+
+📊 Hallazgos totales: {{stats.total}}
+- ALTA: {{stats.alta}}
+- MEDIA: {{stats.media}}  
+- BAJA: {{stats.baja}}
+
+📋 Status actualizado a: {{new_status}}
+📝 Sección de revisión agregada al archivo
+
+👉 Próximos pasos:
+{{next_steps}}
+
+---
+⚠️ RECORDATORIO: Para implementar los cambios solicitados, usa el workflow 
+*desarrollar-historia-usuario con el agente Developer. Este workflow es SOLO revisión.
+    </output>
+  </step>
+
+</workflow>
