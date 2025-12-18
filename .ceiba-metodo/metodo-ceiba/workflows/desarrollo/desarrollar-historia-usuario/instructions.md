@@ -277,7 +277,7 @@ Progreso en componente: {{tareas_completadas_componente}}/{{tareas_totales_compo
 <critical>Validar tareas de desarrollo completadas, ignorar tareas manuales pendientes</critical>
 
 <action>Re-escanear archivo de historia COMPLETO</action>
-<action>Identificar tareas MANUALES (keywords: "Ejecutar pipeline", "Crear PR", "Deployment", "QA", "Diagnosticador", "pruebas manuales", "Tests manuales", "Pull Request")</action>
+<action>Identificar tareas MANUALES (keywords: "Ejecutar pipeline", "Crear PR", "Deployment", "QA", "Peer Review", "pruebas manuales", "Tests manuales", "Pull Request")</action>
 <action>Verificar que TODAS las tareas NO-MANUALES estén marcadas [x]</action>
 
 <check if="existen tareas de desarrollo incompletas (NO manuales)">

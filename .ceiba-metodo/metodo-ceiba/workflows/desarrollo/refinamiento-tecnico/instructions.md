@@ -369,8 +369,8 @@ Tu respuesta:</ask>
     <action>Usar tareas manuales DEFAULT con 3 componentes:</action>
     
     <action>1. Componente "Code Quality" con tareas:</action>
-    <action>   - Tarea: "Ejecutar revisión par en Diagnosticador"</action>
-    <action>   - Tarea: "Resolver incidentes del Diagnosticador" (condicional)</action>
+    <action>   - Tarea: "Ejecutar Agente Peer Review"</action>
+    <action>   - Tarea: "Resolver incidentes del Peer Review" (condicional)</action>
 
     <action>2. Componente "Deployment DEV" con tareas:</action>
     <action>   - Tarea: "Crear Pull Request"</action>
