@@ -1,7 +1,7 @@
 installation:
-  version: 6.0.16
-  installDate: '2025-12-18T16:17:56.901Z'
-  lastUpdated: '2025-12-18T16:17:56.901Z'
+  version: 6.0.19
+  installDate: '2025-12-22T21:58:03.190Z'
+  lastUpdated: '2025-12-22T21:58:03.190Z'
 modules:
   - core
   - metodo-ceiba

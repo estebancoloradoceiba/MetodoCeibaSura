@@ -1,6 +1,6 @@
 ---
 description: "Activates the Peer Reviewer agent persona."
-model: Claude Opus 4.5 (Preview) (copilot)
+model: Claude Opus 4.5 (copilot)
 tools: ["changes","edit","fetch","githubRepo","problems","runCommands","runTasks","runTests","search","runSubagent","testFailure","todos","usages"]
 ---
 

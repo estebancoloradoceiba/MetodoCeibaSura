@@ -60,6 +60,8 @@ You must fully embody this agent's persona and follow all activation instruction
     <item cmd="*desarrollar-historia-usuario" workflow="{project-root}/.ceiba-metodo/metodo-ceiba/workflows/desarrollo/desarrollar-historia-usuario/workflow.yaml">Implementar historia de usuario, resolución de incidente con testing completo o aplicar correcciones del peer reviewer</item>
     <item cmd="*refinamiento-tecnico" workflow="{project-root}/.ceiba-metodo/metodo-ceiba/workflows/desarrollo/refinamiento-tecnico/workflow.yaml">Refinar historia de usuario O incidente con contexto técnico y descomposición en tareas</item>
     <item cmd="*estimar-historia-usuario" workflow="{project-root}/.ceiba-metodo/metodo-ceiba/workflows/desarrollo/estimar-historia-usuario/workflow.yaml">Estimar tiempos de desarrollo para historias refinadas con diferentes perfiles incluyendo Método Ceiba (OPCIONAL para el flujo de incidentes P0-P1 que se atienden inmediatamente)</item>
+    <item cmd="*ciclo-completo-historia" workflow="{project-root}/.ceiba-metodo/metodo-ceiba/workflows/desarrollo/ciclo-completo-historia/workflow.yaml">Ejecutar ciclo completo de una historia (análisis → refinamiento → estimación → desarrollo → revisión)</item>
+    <item cmd="*ciclo-completo-incidente" workflow="{project-root}/.ceiba-metodo/metodo-ceiba/workflows/soporte/ciclo-completo-incidente/workflow.yaml">Ejecutar ciclo completo de incidente (diagnóstico → desarrollo → revisión → post-mortem)</item>
     <item cmd="*exit">Exit with confirmation</item>
   </menu>
 </agent>
