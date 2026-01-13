@@ -45,6 +45,19 @@ execution_hints:
   interactive: true # Requiere interacción constante con el usuario
   autonomous: false # No puede ejecutarse sin input del usuario
 
+# Factores de tiempo para métricas de redacción (en minutos)
+# Estos valores son calibrables según la experiencia del equipo
+metricas_tiempo:
+  # Tiempo tradicional - basado en complejidad del output generado
+  tiempo_estructura_hu: 5 # Redactar Como/Quiero/Para + descripción
+  tiempo_por_escenario: 4 # Pensar + escribir un Given/When/Then
+  tiempo_por_regla_negocio: 2 # Documentar una regla de negocio
+  tiempo_revisar_dependencias: 3 # Solo si hay historias relacionadas
+  tiempo_documentar_integracion: 3 # Solo si menciona sistemas externos
+
+  # Tiempo Método Ceiba - basado en interacciones reales
+  tiempo_por_mensaje_usuario: 1.5 # Leer pregunta IA + pensar + escribir respuesta
+
 # Tags for categorization
 tags:
   - user-story

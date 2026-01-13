@@ -476,9 +476,30 @@ Ejemplos de formateo:
   </substep>
   
   <substep n="5.4" title="Calcular Métricas de Tiempo">
-    <action>{{tiempo_metodo_ceiba}} = Tiempo total transcurrido desde paso 0 hasta ahora (en minutos)</action>
-    <action>{{tiempo_tradicional}} = {{tiempo_metodo_ceiba}} * 2.5</action>
-    <action>{{porcentaje_optimizacion}} = (({{tiempo_tradicional}} - {{tiempo_metodo_ceiba}}) / {{tiempo_tradicional}}) * 100</action>
+    <critical>Usar factores configurables desde workflow.yaml: {metricas_tiempo}</critical>
+    
+    <action>PASO 1: Contar elementos objetivos del output generado:</action>
+    <action>- num_escenarios = Contar secciones "### Escenario" en la historia generada</action>
+    <action>- num_reglas_negocio = Contar items (bullets) en sección "Reglas de Negocio"</action>
+    <action>- tiene_dependencias = ¿Hay contenido en "Historias relacionadas"? (true/false)</action>
+    <action>- tiene_integraciones = ¿Hay contenido en "Sistemas Externos"? (true/false)</action>
+    <action>- num_mensajes_usuario = Contar respuestas del usuario durante la conversación (desde paso 0)</action>
+    
+    <action>PASO 2: Calcular tiempo tradicional (basado en complejidad del output):</action>
+    <action>{{tiempo_tradicional}} = {metricas_tiempo.tiempo_estructura_hu}</action>
+    <action>{{tiempo_tradicional}} += num_escenarios × {metricas_tiempo.tiempo_por_escenario}</action>
+    <action>{{tiempo_tradicional}} += num_reglas_negocio × {metricas_tiempo.tiempo_por_regla_negocio}</action>
+    <action>SI tiene_dependencias: {{tiempo_tradicional}} += {metricas_tiempo.tiempo_revisar_dependencias}</action>
+    <action>SI tiene_integraciones: {{tiempo_tradicional}} += {metricas_tiempo.tiempo_documentar_integracion}</action>
+    
+    <action>PASO 3: Calcular tiempo Método Ceiba (basado en interacciones reales):</action>
+    <action>{{tiempo_metodo_ceiba}} = num_mensajes_usuario × {metricas_tiempo.tiempo_por_mensaje_usuario}</action>
+    <action>Redondear {{tiempo_metodo_ceiba}} al entero más cercano</action>
+    
+    <action>PASO 4: Calcular porcentaje de optimización:</action>
+    <action>{{porcentaje_optimizacion}} = (({{tiempo_tradicional}} - {{tiempo_metodo_ceiba}}) / {{tiempo_tradicional}}) × 100</action>
+    <action>Redondear {{porcentaje_optimizacion}} al entero más cercano</action>
+    <action>SI {{porcentaje_optimizacion}} < 0: Establecer {{porcentaje_optimizacion}} = 0 (caso edge donde MC tomó más tiempo)</action>
     
     <template-output>tiempo_metodo_ceiba</template-output>
     <template-output>tiempo_tradicional</template-output>
