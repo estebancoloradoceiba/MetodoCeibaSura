@@ -8,6 +8,14 @@
 
 <workflow>
 
+<step n="0" goal="Validar Configuración del Proyecto">
+
+<critical>VALIDACIÓN BLOQUEANTE - El proyecto debe tener archivos de configuración obligatorios</critical>
+
+<invoke-protocol name="validate_project_prerequisites" />
+
+</step>
+
 <step n="1" goal="Cargar y Validar Historia a Refinar">
 
 <critical>Este workflow MODIFICA una historia existente - NO crea archivo nuevo</critical>
@@ -145,6 +153,8 @@ OPCIONES:
 
 <substep n="3.5.2" goal="Buscar Archivos de Pruebas Existentes en el Código">
 
+<critical>EVITAR PRUEBAS REDUNDANTES: Antes de crear tests nuevos, verificar si existen tests que cubran la funcionalidad afectada y modificarlos si aplica. Decisión: ACTUALIZAR test existente vs CREAR nuevo test.</critical>
+
 <action>Analizar estructura del proyecto para identificar convenciones de testing:</action>
 <action>- Revisar estructura de carpetas del proyecto (explorar árbol de directorios)</action>
 <action>- Identificar carpetas/módulos dedicados a pruebas </action>
@@ -185,6 +195,12 @@ OPCIONES:
 
 <mandate>NO recomendar tests E2E por defecto - solo si están documentados o implementados en el proyecto</mandate>
 
+<critical>IMPORTANTE - Preparación de Datos de Prueba:</critical>
+<action>Para tests unitarios/integración que requieran preparar objetos de datos:</action>
+<action>- OBLIGATORIO usar patrón Test Data Builder (ver substep 3.5.6)</action>
+<action>- Verificar si existen builders para las entidades requeridas</action>
+<action>- Si NO existen, incluir su creación como prerequisito en las tareas</action>
+
 </substep>
 
 <substep n="3.5.5" goal="Evaluar Necesidad de Tests de Carga/Performance">
@@ -221,10 +237,12 @@ OPCIONES:
 <action>- Framework(s) de testing definidos en arquitectura</action>
 <action>- Patrones de testing del proyecto (AAA, Test Data Builder, etc.)</action>
 <action>- Tipos de tests requeridos por capa</action>
-<action>- Test Data Builders a reutilizar o crear</action>
+<action>- **Test Data Builders:** Listar explícitamente builders existentes a reutilizar Y builders nuevos a crear</action>
 <action>- Herramientas de performance testing según stack del proyecto</action>
 <action>- Cobertura esperada según políticas del proyecto</action>
 <action>- Convenciones de nombres y ubicación de archivos de test</action>
+
+<critical>VALIDAR: Si hay entidades que requieren builders y NO existen, deben quedar como tareas en Fase correspondiente</critical>
 
 </substep>
 

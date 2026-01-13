@@ -7,7 +7,7 @@ El workflow `revisar-historia` es un meta-workflow que coordina **5 sub-workflow
 ```
 revisar-historia/
 ├── workflow.yaml           # Configuración principal
-├── instructions.xml        # Orquestador (5 steps)
+├── instructions.xml        # Orquestador (5 steps + validación prerrequisito)
 ├── checklist.md           # Validación
 ├── README.md              # Este archivo (incluye algoritmos de agregación)
 │
@@ -19,12 +19,35 @@ revisar-historia/
 │   └── 5-decision-outcome/
 │
 └── tasks/                 # Tasks XML con lógica de evaluación
+    ├── diagnostic-metodo-flujo-desarrollo.xml  # ⚡ PRERREQUISITO: Valida flujo completo
     ├── diagnostic-seguridad.xml      # BOLA + OWASP Top 10
     ├── diagnostic-backend.xml        # Arquitectura, errores
     ├── diagnostic-frontend.xml       # Arquitectura frontend
     ├── diagnostic-unit-tests.xml     # AAA, mocks, data builder
     └── diagnostic-integration-tests.xml  # NO mocks internos
 ```
+
+## Validación de Flujo de Desarrollo (Prerrequisito)
+
+Antes de ejecutar los 5 sub-workflows, el sistema valida que la historia/incidente haya completado todo el flujo de desarrollo del Método Ceiba:
+
+### Para Historias de Usuario:
+| Fase | Workflow | Severidad si Falta |
+|------|----------|-------------------|
+| Análisis Arquitectónico | `*analisis-y-diseno` | ALTA (bloqueante) |
+| Refinamiento Técnico | `*refinamiento-tecnico` | ALTA (bloqueante) |
+| Estimación | `*estimar-historia-usuario` | MEDIA (advertencia) |
+| Desarrollo Completado | `*desarrollar-historia-usuario` | ALTA (bloqueante) |
+
+### Para Incidentes:
+| Fase | Workflow | Severidad si Falta |
+|------|----------|-------------------|
+| Recepción del Error | `*recibir-error` | ALTA (bloqueante) |
+| Diagnóstico | `*diagnosticar` | ALTA (bloqueante) |
+| Refinamiento Técnico | `*refinamiento-tecnico` | ALTA (bloqueante) |
+| Desarrollo Completado | `*desarrollar-historia-usuario` | ALTA (bloqueante) |
+
+Si falta alguna fase de severidad ALTA, la revisión se **bloquea** y muestra los workflows que deben ejecutarse primero.
 
 ## Uso
 

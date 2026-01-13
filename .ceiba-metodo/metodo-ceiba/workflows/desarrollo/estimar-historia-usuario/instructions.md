@@ -8,6 +8,14 @@
 
 <workflow>
 
+<step n="0" goal="Validar Configuración del Proyecto">
+
+<critical>VALIDACIÓN BLOQUEANTE - El proyecto debe tener archivos de configuración obligatorios</critical>
+
+<invoke-protocol name="validate_project_prerequisites" />
+
+</step>
+
 <step n="1" goal="Cargar y Validar Historia a Estimar">
 
 <critical>PREREQUISITO: La historia DEBE estar refinada por el Developer con tareas de implementación definidas</critical>

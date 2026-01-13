@@ -7,6 +7,9 @@
     <mandate>Execute ALL steps in instructions IN EXACT ORDER</mandate>
     <mandate>Save to template output file after EVERY "template-output" tag</mandate>
     <mandate>NEVER delegate a step - YOU are responsible for every steps execution</mandate>
+    <mandate>ALWAYS create TODO list using manage_todo_list tool EXACTLY matching workflow steps - NO inference, NO additions, ONLY what is explicitly defined in instructions</mandate>
+    <mandate>NEVER suggest, recommend, or mention workflows, commands, or next steps that are NOT EXPLICITLY written in the current workflow instructions</mandate>
+    <mandate>Output ONLY what the workflow instructions explicitly define - NO creative additions, NO inferred suggestions, NO "helpful" extras</mandate>
   </llm>
 
   <WORKFLOW-RULES critical="true">
@@ -14,6 +17,8 @@
     <rule n="2">Optional steps: Ask user unless #yolo mode active</rule>
     <rule n="3">Template-output tags: Save content → Show user → Get approval before continuing</rule>
     <rule n="4">User must approve each major section before continuing UNLESS #yolo mode active</rule>
+    <rule n="5">TODO List: Create manage_todo_list with one todo per workflow step/phase, mark in-progress before starting each, completed after finishing</rule>
+    <rule n="6">NO INVENTED CONTENT: Never add suggestions, recommendations, or "next steps" not explicitly written in instructions. If instructions say "show X", show ONLY X.</rule>
   </WORKFLOW-RULES>
 
   <flow>
@@ -41,10 +46,29 @@
         <action>If template-workflow → Write template to output file with placeholders</action>
         <action>If action-workflow → Skip file creation</action>
       </substep>
+
+      <substep n="1d" title="Initialize TODO List for Progress Tracking">
+        <mandate>ALWAYS execute this substep - TODO list is REQUIRED for all workflows</mandate>
+        <mandate>TODO list must be EXACT 1:1 mapping of steps in instructions - NO inference, NO additions, NO interpretation</mandate>
+        <action>Extract ONLY explicitly defined steps from loaded instructions (step n="X" tags)</action>
+        <action>Use manage_todo_list tool to create TODO list with:</action>
+        <detail>EXACTLY one todo per step tag found in instructions</detail>
+        <detail>Title: Use LITERAL step number + goal attribute (e.g., "Step 1: Load and Initialize Workflow")</detail>
+        <detail>Description: Copy EXACT goal text from step, nothing more</detail>
+        <detail>All items start as "not-started"</detail>
+        <critical>DO NOT invent, infer, or add steps that are not explicitly written in instructions</critical>
+        <critical>DO NOT merge, split, or reinterpret steps</critical>
+        <critical>DO NOT add "Workflow Completion" or any other synthetic step unless explicitly defined</critical>
+        <action>Display created TODO list to user for visibility</action>
+        <note>Update todo status to "in-progress" before starting each step</note>
+        <note>Update todo status to "completed" immediately after finishing each step</note>
+      </substep>
     </step>
 
     <step n="2" title="Process Each Instruction Step">
       <iterate>For each step in instructions:</iterate>
+      
+      <action>Update TODO list: Mark current step as "in-progress" using manage_todo_list</action>
 
       <substep n="2a" title="Handle Step Attributes">
         <check>If optional="true" and NOT #yolo → Ask user to include</check>
@@ -85,6 +109,7 @@
       </substep>
 
       <substep n="2d" title="Step Completion">
+        <action>Update TODO list: Mark current step as "completed" using manage_todo_list</action>
         <check>If no special tags and NOT #yolo:</check>
         <ask>Continue to next step? (y/n/edit)</ask>
       </substep>
@@ -252,11 +277,45 @@
         </example>
       </usage-in-instructions>
     </protocol>
+
+    <protocol name="validate_project_prerequisites" desc="Validate required project files exist before workflow execution">
+      <critical>Skip if workflow.yaml has no required_project_files section</critical>
+      <critical>BLOCKING severity = halt workflow, WARNING = continue with notice</critical>
+
+      <flow>
+        <step n="1">Read required_project_files from workflow.yaml, resolve paths using config variables</step>
+        <step n="2">For each file: check exists and has content → mark ✅ FOUND or ❌ MISSING</step>
+        <step n="3">
+          <check if="any BLOCKING file MISSING">
+            <output>
+⛔ PREREQUISITOS FALTANTES
+
+| Archivo | Ruta | Generar con |
+|---------|------|-------------|
+{{#each missing_blocking_files}}
+| {{name}} | {{path}} | `{{generator_workflow}}` |
+{{/each}}
+
+Ejecuta los comandos indicados y vuelve a iniciar el workflow.
+            </output>
+            <halt>Workflow bloqueado</halt>
+          </check>
+          <check if="WARNING files MISSING">
+            <output>⚠️ Archivos opcionales no encontrados: {{missing_warning_files}}. Continuando...</output>
+          </check>
+          <check if="all FOUND">
+            <output>✅ Prerequisitos validados</output>
+          </check>
+        </step>
+      </flow>
+    </protocol>
   </protocols>
 
   <llm final="true">
     <mandate>This is the complete workflow execution engine</mandate>
     <mandate>You MUST Follow instructions exactly as written and maintain conversation context between steps</mandate>
     <mandate>If confused, re-read this task, the workflow yaml, and any yaml indicated files</mandate>
+    <mandate>FORBIDDEN: Adding "Próximos pasos", "Next steps", "Sugerencias", or ANY recommendations not explicitly in instructions</mandate>
+    <mandate>Your output must be EXACTLY what instructions define - nothing more, nothing less</mandate>
   </llm>
 </task>

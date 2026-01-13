@@ -20,6 +20,19 @@ date: system-generated
 # Story and Architecture locations
 dev_story_location: "{config_source}:dev_story_location"
 architecture_sharded_location: "{config_source}:architecture_sharded_location"
+dod_pivots_location: "{config_source}:dod_pivots_location"
+incident_location: "{config_source}:incident_location"
+
+# ============================================================================
+# ARCHIVOS DE CONFIGURACIÓN REQUERIDOS (BLOQUEANTE)
+# ============================================================================
+required_project_files:
+  - name: "coding-standards.md"
+    path: "{architecture_sharded_location}/coding-standards.md"
+    description: "Estándares de código del proyecto - Usado para validar que el código cumple convenciones"
+    severity: "BLOCKING"
+    generator_workflow: "*generar-estandares-codigo"
+    impact: "Sin este archivo, la revisión no puede validar cumplimiento de estándares del equipo"
 
 # Module path and component files
 installed_path: "{project-root}/.ceiba-metodo/metodo-ceiba/workflows/desarrollo/revisar-historia"
@@ -104,8 +117,15 @@ execution_tracking:
 diagnostic_tasks:
   location: "{installed_path}/tasks"
   tasks:
+    - id: "metodo-flujo-desarrollo"
+      task_file: "diagnostic-metodo-flujo-desarrollo.xml"
+      description: "Valida cumplimiento del flujo de desarrollo Método Ceiba"
+      priority: 0  # Se ejecuta PRIMERO antes de otros diagnósticos
     - id: "seguridad"
       task_file: "diagnostic-seguridad.xml"
+    - id: "ethical-hacking-pentesting"
+      task_file: "diagnostic-ethical-hacking-pentesting.xml"
+      description: "Análisis ofensivo - busca vulnerabilidades explotables como un atacante real"
     - id: "backend"
       task_file: "diagnostic-backend.xml"
     - id: "frontend"

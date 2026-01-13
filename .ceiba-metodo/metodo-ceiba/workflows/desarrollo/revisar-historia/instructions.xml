@@ -64,21 +64,77 @@
   </critical>
 
   <!-- ════════════════════════════════════════════════════════════════════════ -->
+  <!-- STEP -1: Validar Configuración del Proyecto                              -->
+  <!-- ════════════════════════════════════════════════════════════════════════ -->
+  
+  <step n="-1" goal="Validar configuración del proyecto">
+    <critical>VALIDACIÓN BLOQUEANTE - El proyecto debe tener archivos de configuración obligatorios</critical>
+    
+    <invoke-protocol name="validate_project_prerequisites" />
+  </step>
+
+  <!-- ════════════════════════════════════════════════════════════════════════ -->
   <!-- STEP 0: Localizar historia                                               -->
   <!-- ════════════════════════════════════════════════════════════════════════ -->
   
   <step n="0" goal="Localizar historia y preparar archivos">
-    <ask>¿Qué historia de usuario deseas revisar? (número o ruta)</ask>
+    <ask>¿Qué historia de usuario o incidente deseas revisar? (número o ruta)</ask>
     
-    <action>Buscar archivo en {dev_story_location}</action>
-    <action>Leer contenido: Status, ACs, Tasks, Lista de Archivos</action>
+    <action>Determinar tipo de documento (historia si .story.md o incidente si .incident.md o contiene INC-)</action>
+    <action>Buscar archivo en {dev_story_location} o {incident_location}</action>
+    <action>Leer contenido completo del archivo</action>
+    <action>Extraer: Status, ACs, Tasks, Lista de Archivos</action>
     <action>Obtener archivos modificados (git o Lista de Archivos)</action>
     
     <check if="Status no válido para revisión">
       <halt>Estado incorrecto: {{estado_actual}}</halt>
     </check>
     
-    <output>Historia {{story_number}} - {{staged_files.length}} archivos a revisar</output>
+    <output>{{document_type}} {{story_number}} - {{staged_files.length}} archivos a revisar</output>
+  </step>
+
+  <!-- ════════════════════════════════════════════════════════════════════════ -->
+  <!-- STEP 0.5: Validar Cumplimiento del Flujo de Desarrollo (PRERREQUISITO)   -->
+  <!-- ════════════════════════════════════════════════════════════════════════ -->
+  
+  <step n="0.5" goal="Validar que el documento completó el flujo de desarrollo Método Ceiba">
+    <output>═══ VALIDACIÓN PRERREQUISITO: Flujo de Desarrollo Método Ceiba ═══</output>
+    
+    <critical>Este diagnóstico es BLOQUEANTE - si falla, NO continuar con la revisión</critical>
+    
+    <task-invoke file="{installed_path}/tasks/diagnostic-metodo-flujo-desarrollo.xml">
+      <input name="story_file_content" value="{{story_file_content}}" />
+      <input name="story_number" value="{{story_number}}" />
+      <input name="document_type" value="{{document_type}}" />
+    </task-invoke>
+    
+    <expected-output format="markdown">
+      ### Cumplimiento del Flujo de Desarrollo (Método Ceiba)
+      
+      | Fase | Estado | Evidencia | Acción Requerida |
+      |------|--------|-----------|------------------|
+      ...
+      
+      **Resumen**: X% cumplimiento
+    </expected-output>
+    
+    <check if="has_blocking_issues == true">
+      <halt>
+⛔ REVISIÓN BLOQUEADA
+
+El documento NO ha completado todas las fases obligatorias del flujo de desarrollo.
+Por favor ejecuta los workflows indicados en el reporte antes de solicitar revisión.
+
+{{blocking_issues_detail}}
+      </halt>
+    </check>
+    
+    <check if="has_warnings == true">
+      <output>⚠️ ADVERTENCIAS: {{warnings_summary}}</output>
+      <output>Continuando con la revisión...</output>
+    </check>
+    
+    <output>✅ Flujo de desarrollo validado - Continuando con revisión de código</output>
   </step>
 
   <!-- ════════════════════════════════════════════════════════════════════════ -->

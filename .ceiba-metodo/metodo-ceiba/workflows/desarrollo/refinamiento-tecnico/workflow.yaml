@@ -25,6 +25,26 @@ variables:
   incident_location: "{config_source}:incident_location" # Directory where incidents are stored
   architecture_sharded_location: "{config_source}:architecture_sharded_location" # Architecture docs location
   coding_standards_file: "coding-standards.md" # Archivo de estándares de código a buscar
+  dod_pivots_location: "{config_source}:dod_pivots_location" # DoD pivots table location
+
+# ============================================================================
+# ARCHIVOS DE CONFIGURACIÓN REQUERIDOS (BLOQUEANTE)
+# ============================================================================
+# Estos archivos son OBLIGATORIOS para el flujo de desarrollo.
+# Si no existen, el workflow se BLOQUEARÁ y mostrará instrucciones para generarlos.
+required_project_files:
+  - name: "coding-standards.md"
+    path: "{architecture_sharded_location}/coding-standards.md"
+    description: "Estándares de código del proyecto - Define convenciones, patrones y reglas de estilo"
+    severity: "BLOCKING"
+    generator_workflow: "*generar-estandares-codigo"
+    impact: "Sin este archivo, el refinamiento no puede garantizar que las tareas sigan los estándares del equipo"
+  - name: "dod-pivots.md"
+    path: "{dod_pivots_location}"
+    description: "Tabla de pivotes DoD y técnicos - Define tiempos para tareas manuales y técnicas"
+    severity: "BLOCKING"
+    generator_workflow: "*administrar-pivotes-dod"
+    impact: "Sin este archivo, la Fase N usará tareas genéricas en lugar de las definidas por el equipo"
 
 # Output configuration - modifies existing story file
 default_output_file: "{dev_story_location}/{story_number}.story.md"

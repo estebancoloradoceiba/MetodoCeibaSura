@@ -9,6 +9,14 @@
 
 <workflow>
 
+<step n="0" goal="Validar Configuración del Proyecto">
+
+<critical>VALIDACIÓN BLOQUEANTE - El proyecto debe tener archivos de configuración obligatorios</critical>
+
+<invoke-protocol name="validate_project_prerequisites" />
+
+</step>
+
 <step n="1" goal="Cargar Historia y determinar modo de trabajo">
 
 <ask>¿Qué historia de usuario o incidente deseas desarrollar?
@@ -83,11 +91,11 @@ Ejecuta *refinamiento-tecnico para generar las tareas antes de desarrollar.</out
 <!-- GESTIÓN DE TODO LIST PARA TRACKING DE PROGRESO -->
 <mandate>CREAR TODO LIST basado en las fases de la historia:</mandate>
 <action>Usar herramienta manage_todo_list para crear un todo por cada fase de implementación</action>
-<action>SIEMPRE agregar como ÚLTIMO TODO: "Cierre de Historia" con las siguientes responsabilidades:</action>
-<action>   - Marcar todas las tareas trabajadas en esta sesion como completadas [x] en el archivo de la historia</action>
-<action>   - Actualizar sección Dev Agent Record con resumen de implementación en el archivo de la historia</action>
-<action>   - Actualizar estado de la historia a 'Desarrollado (Developer)' en el archivo de la historia</action>
-<note>Este último todo actúa como checkpoint final, previniendo pérdida de contexto en historias largas</note>
+<action>SIEMPRE agregar los siguientes 3 TODOs al final (después de las fases) para el cierre de la historia:</action>
+<action>   1. "Marcar Tareas Completadas": Marcar todas las tareas trabajadas en esta sesión como completadas [x] en el archivo de la historia</action>
+<action>   2. "Actualizar Dev Agent Record": Actualizar sección Dev Agent Record con resumen de implementación en el archivo de la historia</action>
+<action>   3. "Actualizar Estado Historia": Actualizar estado de la historia a 'Desarrollado (Developer)' en el archivo de la historia</action>
+<note>Estos 3 últimos todos actúan como checkpoints finales, previniendo pérdida de contexto en historias largas</note>
 
 <check if="existe 'Fase 0: Infraestructura'">
 <action>Establecer {{componente_actual}} = "Fase 0: Infraestructura"</action>

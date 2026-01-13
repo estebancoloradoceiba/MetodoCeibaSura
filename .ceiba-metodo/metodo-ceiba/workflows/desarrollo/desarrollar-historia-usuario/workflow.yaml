@@ -24,7 +24,19 @@ variables:
   execution_mode: "prompt" # Modo de ejecución: "component" (recomendado) o "continuous"
   architecture_sharded_location: "{config_source}:architecture_sharded_location" # Architecture docs location
   coding_standards_file: "coding-standards.md" # Archivo de estándares de código a buscar
+  dod_pivots_location: "{config_source}:dod_pivots_location" # DoD pivots table location
   working_on_review_corrections: false # Control flag: true cuando implementando correcciones de peer review
+
+# ============================================================================
+# ARCHIVOS DE CONFIGURACIÓN REQUERIDOS (BLOQUEANTE)
+# ============================================================================
+required_project_files:
+  - name: "coding-standards.md"
+    path: "{architecture_sharded_location}/coding-standards.md"
+    description: "Estándares de código del proyecto - Define convenciones, patrones y reglas de estilo"
+    severity: "BLOCKING"
+    generator_workflow: "*generar-estandares-codigo"
+    impact: "Sin este archivo, el desarrollo no puede garantizar que el código siga los estándares del equipo"
 
 # Story file will be modified in place
 default_output_file: "{dev_story_location}/{story_number}.story.md"

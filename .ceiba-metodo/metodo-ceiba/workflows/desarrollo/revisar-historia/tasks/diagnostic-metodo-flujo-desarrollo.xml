@@ -1,0 +1,261 @@
+<task id="diagnostic-metodo-flujo-desarrollo">
+  <role>Auditor de cumplimiento del Método Ceiba, especializado en validar que las historias de usuario e incidentes hayan completado todas las fases obligatorias del flujo de desarrollo antes de la revisión de código.</role>
+
+  <inputs>
+    <input name="story_file_content" required="true" description="Contenido completo del archivo de historia o incidente"/>
+    <input name="story_number" required="true"/>
+    <input name="document_type" required="true" description="'story' para historia de usuario, 'incident' para incidente"/>
+  </inputs>
+
+  <process>
+    <step n="0" name="Checklist Inicial">
+      <action>Establecer checklist del plan de validación según tipo de documento:</action>
+      <checklist type="story">
+        - [ ] Verificar sección "Análisis Arquitectónico" presente y completada
+        - [ ] Verificar sección "Refinamiento Técnico" o "Tareas de Implementación" presente
+        - [ ] Verificar sección "Estimación" con valores de complejidad
+        - [ ] Verificar sección "Dev Agent Record" o evidencia de desarrollo completado
+        - [ ] Generar alerta si falta alguna fase obligatoria
+      </checklist>
+      <checklist type="incident">
+        - [ ] Verificar sección "1. Recepción del Error" (PO) - Status: Triaged
+        - [ ] Verificar sección "2. Diagnóstico" (Architect) - Root Cause Analysis completado
+        - [ ] Verificar sección "Refinamiento Técnico" o "Tareas de Implementación" presente
+        - [ ] Verificar sección "Dev Agent Record" o evidencia de desarrollo completado
+        - [ ] Generar alerta si falta alguna fase obligatoria
+      </checklist>
+    </step>
+
+    <step n="1" name="Identificar Tipo de Documento">
+      <action>Determinar si es historia de usuario o incidente basado en:</action>
+      <criteria type="incident">
+        - Archivo termina en .incident.md
+        - Contiene "INCIDENTE-" o "INC-" en el título
+        - Tiene sección "1. Recepción del Error"
+      </criteria>
+      <criteria type="story">
+        - Archivo termina en .story.md
+        - Contiene "Historia #" en el título
+        - Tiene sección "Historia de Usuario"
+      </criteria>
+      <action>Establecer {{document_type}} basado en criterios</action>
+    </step>
+
+    <step n="2" name="Validar Flujo para Historia de Usuario" if="document_type == 'story'">
+      <action>Buscar y validar cada fase obligatoria:</action>
+      
+      <phase n="1" name="Análisis Arquitectónico" required="true">
+        <search_patterns>
+          - "## Análisis Arquitectónico"
+          - "## Análisis y Diseño Arquitectónico"
+          - "Estado del análisis arquitectónico: Completado"
+          - "Análisis arquitectónico validado"
+        </search_patterns>
+        <valid_if>
+          - Sección existe Y tiene contenido (no solo placeholder)
+          - O metadata indica "Estado del análisis arquitectónico: Completado"
+          - O tiene subsección "Impacto Arquitectónico" con contenido
+        </valid_if>
+        <severity_if_missing>ALTA</severity_if_missing>
+        <workflow_to_execute>*analisis-y-diseno (agente Arquitecto)</workflow_to_execute>
+      </phase>
+
+      <phase n="2" name="Refinamiento Técnico" required="true">
+        <search_patterns>
+          - "## Refinamiento Técnico"
+          - "## Tareas de Implementación"
+          - "### Fase"
+          - "- [ ]" o "- [x]" dentro de sección de tareas
+        </search_patterns>
+        <valid_if>
+          - Sección "Tareas de Implementación" existe Y tiene al menos una tarea definida
+          - O sección "Refinamiento Técnico" existe con tareas desglosadas
+        </valid_if>
+        <severity_if_missing>ALTA</severity_if_missing>
+        <workflow_to_execute>*refinamiento-tecnico (agente SM/Developer)</workflow_to_execute>
+      </phase>
+
+      <phase n="3" name="Estimación" required="true">
+        <search_patterns>
+          - "## Estimación"
+          - "Complejidad:"
+          - "Esfuerzo estimado:"
+          - "Story Points:"
+          - "Tiempo estimado:"
+        </search_patterns>
+        <valid_if>
+          - Sección "Estimación" existe con valores numéricos
+          - O campo "Complejidad:" tiene valor (Alta/Media/Baja o número)
+          - O tareas tienen complejidad asignada
+        </valid_if>
+        <severity_if_missing>MEDIA</severity_if_missing>
+        <workflow_to_execute>*estimar-historia-usuario (agente SM/Developer)</workflow_to_execute>
+      </phase>
+
+      <phase n="4" name="Desarrollo Completado" required="true">
+        <search_patterns>
+          - "## Dev Agent Record"
+          - "## Dev Agent"
+          - "### Completion Notes"
+          - "### Debug Log"
+          - "Estado: Desarrollado"
+          - "Estado: En Desarrollo"
+          - "Status: Desarrollado"
+        </search_patterns>
+        <valid_if>
+          - Sección "Dev Agent Record" existe Y tiene contenido en "Completion Notes"
+          - O Status indica "Desarrollado (Developer)" o "Lista para Revisión"
+          - O mayoría de tareas marcadas [x]
+        </valid_if>
+        <severity_if_missing>ALTA</severity_if_missing>
+        <workflow_to_execute>*desarrollar-historia-usuario (agente Developer)</workflow_to_execute>
+      </phase>
+    </step>
+
+    <step n="3" name="Validar Flujo para Incidente" if="document_type == 'incident'">
+      <action>Buscar y validar cada fase obligatoria:</action>
+      
+      <phase n="1" name="Recepción del Error" required="true">
+        <search_patterns>
+          - "## 1. Recepción del Error"
+          - "**Incident Information**"
+          - "- Status: Triaged"
+          - "**Error Description**"
+        </search_patterns>
+        <valid_if>
+          - Sección "1. Recepción del Error" existe
+          - Y tiene "Status: Triaged" o superior
+          - Y tiene "Error Description" con contenido
+        </valid_if>
+        <severity_if_missing>ALTA</severity_if_missing>
+        <workflow_to_execute>*recibir-error (agente PO)</workflow_to_execute>
+      </phase>
+
+      <phase n="2" name="Diagnóstico" required="true">
+        <search_patterns>
+          - "## 2. Diagnóstico"
+          - "**Root Cause Analysis (5 Whys)**"
+          - "**Clasificación de Tipo de Error**"
+          - "**Estrategia de Resolución**"
+        </search_patterns>
+        <valid_if>
+          - Sección "2. Diagnóstico" existe
+          - Y tiene "Root Cause Analysis" con contenido (análisis 5 Whys)
+          - Y tiene "Clasificación de Tipo de Error"
+        </valid_if>
+        <severity_if_missing>ALTA</severity_if_missing>
+        <workflow_to_execute>*diagnosticar (agente Arquitecto)</workflow_to_execute>
+      </phase>
+
+      <phase n="3" name="Refinamiento Técnico" required="true">
+        <search_patterns>
+          - "## Refinamiento Técnico"
+          - "## Tareas de Implementación"
+          - "## 3. Refinamiento"
+          - "### Fase"
+        </search_patterns>
+        <valid_if>
+          - Sección de tareas existe con al menos una tarea definida
+        </valid_if>
+        <severity_if_missing>ALTA</severity_if_missing>
+        <workflow_to_execute>*refinamiento-tecnico (agente SM/Developer)</workflow_to_execute>
+      </phase>
+
+      <phase n="4" name="Desarrollo Completado" required="true">
+        <search_patterns>
+          - "## Dev Agent Record"
+          - "### Completion Notes"
+          - "Status: Resuelto"
+          - "Status: Desarrollado"
+        </search_patterns>
+        <valid_if>
+          - Sección "Dev Agent Record" existe con contenido
+          - O Status indica desarrollo completado
+        </valid_if>
+        <severity_if_missing>ALTA</severity_if_missing>
+        <workflow_to_execute>*desarrollar-historia-usuario (agente Developer)</workflow_to_execute>
+      </phase>
+    </step>
+
+    <step n="4" name="Generar Reporte de Cumplimiento">
+      <action>Para cada fase validada, registrar:</action>
+      <fields>
+        - Fase: nombre de la fase
+        - Estado: ✅ Completado | ⚠️ Parcial | ❌ Faltante
+        - Evidencia: ubicación en el documento donde se encontró
+        - Workflow: comando a ejecutar si falta
+      </fields>
+      <action>Calcular porcentaje de cumplimiento del flujo</action>
+      <action>Determinar si puede continuar la revisión o debe detenerse</action>
+    </step>
+
+    <step n="5" name="Validación Post-Proceso">
+      <action>Verificar consistencia del análisis</action>
+      <action>Si hay fases faltantes ALTA, generar alerta bloqueante</action>
+      <action>Si hay fases faltantes MEDIA, generar advertencia no bloqueante</action>
+    </step>
+  </process>
+
+  <output format="markdown">
+### Cumplimiento del Flujo de Desarrollo (Método Ceiba)
+
+**Tipo de Documento**: {{document_type_label}}
+**Cumplimiento del Flujo**: {{compliance_percentage}}%
+
+| Fase | Estado | Evidencia | Acción Requerida |
+|------|--------|-----------|------------------|
+{{#each phases}}
+| {{name}} | {{status_icon}} {{status}} | {{evidence}} | {{action_required}} |
+{{/each}}
+
+{{#if has_blocking_issues}}
+⛔ **ALERTA BLOQUEANTE**: El documento NO ha completado el flujo de desarrollo obligatorio.
+
+**Fases Faltantes (Severidad ALTA):**
+{{#each missing_high}}
+- ❌ **{{name}}**: Ejecutar `{{workflow}}` antes de continuar
+{{/each}}
+
+**Recomendación**: Detener la revisión y completar las fases faltantes en orden.
+{{/if}}
+
+{{#if has_warnings}}
+⚠️ **ADVERTENCIAS**: Algunas fases opcionales no están completas.
+
+{{#each missing_medium}}
+- ⚠️ **{{name}}**: Considerar ejecutar `{{workflow}}`
+{{/each}}
+{{/if}}
+
+{{#if all_phases_complete}}
+✅ **FLUJO COMPLETO**: El documento ha pasado por todas las fases obligatorias del Método Ceiba.
+{{/if}}
+
+**Resumen**: {{summary}}
+  </output>
+
+  <rules>
+    <rule>Validar TODAS las fases obligatorias antes de emitir resultado</rule>
+    <rule>Si falta fase de severidad ALTA, el diagnóstico debe ser BLOQUEANTE</rule>
+    <rule>Buscar múltiples patrones para cada fase (tolerancia a variaciones de formato)</rule>
+    <rule>Documentar evidencia específica de cada fase encontrada</rule>
+    <rule>Proporcionar comando exacto del workflow a ejecutar para cada fase faltante</rule>
+    <rule>NO bloquear por fases de severidad MEDIA, solo advertir</rule>
+    <rule>Considerar el documento como "parcialmente completo" si tiene al menos 50% de fases</rule>
+  </rules>
+
+  <blocking_criteria>
+    <block_if>
+      - Cualquier fase de severidad ALTA está faltante
+      - El porcentaje de cumplimiento es menor a 50%
+    </block_if>
+    <warn_if>
+      - Fases de severidad MEDIA están faltantes
+      - El porcentaje de cumplimiento es entre 50% y 99%
+    </warn_if>
+    <pass_if>
+      - Todas las fases de severidad ALTA están completas
+      - El porcentaje de cumplimiento es 100%
+    </pass_if>
+  </blocking_criteria>
+</task>
