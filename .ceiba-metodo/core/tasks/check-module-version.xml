@@ -91,7 +91,7 @@
     <session n="6" title="Notificar y actualizar si necesario">
       <check if="shouldNotify = true">
         <action>Mostrar: "📦 Nueva versión estable de Método Ceiba disponible: v{latestVersion} (actual: v{currentVersion})"</action>
-        <action>Ejecutar: npx @ceiba/metodo-ceiba@latest install</action>
+        <action>Ejecutar: npx @ceiba/metodo-ceiba@latest</action>
       </check>
       <check if="shouldNotify = false">
         <action>Mostrar: "✅ Método Ceiba está actualizado (v{currentVersion})"</action>

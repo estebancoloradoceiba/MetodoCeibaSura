@@ -280,7 +280,22 @@
 
     <protocol name="validate_project_prerequisites" desc="Validate required project files exist before workflow execution">
       <critical>Skip if workflow.yaml has no required_project_files section</critical>
-      <critical>BLOCKING severity = halt workflow, WARNING = continue with notice</critical>
+      <critical>BLOCKING = HALT immediately, NO options to continue, NO defaults</critical>
+      <critical>WARNING = continue with notice</critical>
+      
+      <llm-instruction severity="ABSOLUTE">
+        WHEN ANY FILE WITH severity="BLOCKING" IS MISSING:
+        1. You MUST display ONLY the output block below
+        2. You MUST NOT add ANY text after the output block
+        3. You MUST NOT offer options like "1. CONTINUAR" or "2. GENERAR"
+        4. You MUST NOT ask "¿Cómo deseas proceder?" or "¿Qué deseas hacer?"
+        5. You MUST NOT suggest continuing with degraded mode or defaults
+        6. You MUST NOT proceed to the next step under ANY circumstance
+        7. Your response ENDS immediately after displaying the output block
+        8. The workflow is TERMINATED - user must run generator workflows first
+        
+        VIOLATION OF THESE RULES IS A CRITICAL FAILURE.
+      </llm-instruction>
 
       <flow>
         <step n="1">Read required_project_files from workflow.yaml, resolve paths using config variables</step>
@@ -288,17 +303,29 @@
         <step n="3">
           <check if="any BLOCKING file MISSING">
             <output>
-⛔ PREREQUISITOS FALTANTES
+⛔ VALIDACIÓN BLOQUEANTE - Archivos de Configuración Faltantes
 
-| Archivo | Ruta | Generar con |
-|---------|------|-------------|
+{user_name}, faltan archivos de configuración **OBLIGATORIOS** para ejecutar este workflow:
+
+❌ **Archivos Faltantes**
+
+| Archivo | Ruta Esperada | Impacto |
+|---------|---------------|---------|
 {{#each missing_blocking_files}}
-| {{name}} | {{path}} | `{{generator_workflow}}` |
+| {{name}} | {{path}} | {{impact}} |
 {{/each}}
 
-Ejecuta los comandos indicados y vuelve a iniciar el workflow.
+⚙️ **Acción Requerida**
+
+Ejecuta los siguientes workflows para generar los archivos faltantes:
+{{#each missing_blocking_files}}
+- **{{name}}**: `{{generator_workflow}}`
+{{/each}}
+
+---
+⏹️ **Workflow detenido.** Genera los archivos faltantes y vuelve a ejecutar este workflow.
             </output>
-            <halt>Workflow bloqueado</halt>
+            <halt>WORKFLOW TERMINATED - DO NOT OUTPUT ANYTHING AFTER THIS. No options. No questions. Complete stop.</halt>
           </check>
           <check if="WARNING files MISSING">
             <output>⚠️ Archivos opcionales no encontrados: {{missing_warning_files}}. Continuando...</output>
@@ -317,5 +344,7 @@ Ejecuta los comandos indicados y vuelve a iniciar el workflow.
     <mandate>If confused, re-read this task, the workflow yaml, and any yaml indicated files</mandate>
     <mandate>FORBIDDEN: Adding "Próximos pasos", "Next steps", "Sugerencias", or ANY recommendations not explicitly in instructions</mandate>
     <mandate>Your output must be EXACTLY what instructions define - nothing more, nothing less</mandate>
+    <mandate>CRITICAL: When BLOCKING files are missing, output ONLY the table and generator commands. DO NOT add options, questions, or continuation paths. The workflow STOPS completely.</mandate>
+    <mandate>NEVER offer numbered options (1, 2, etc.) or ask "how to proceed" when BLOCKING prerequisite files are missing</mandate>
   </llm>
 </task>

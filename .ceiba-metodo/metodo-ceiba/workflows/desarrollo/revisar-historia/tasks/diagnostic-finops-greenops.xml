@@ -1,0 +1,157 @@
+<task id="diagnostic-finops-greenops">
+  <role>Experto en FinOps/GreenOps con énfasis en revisión de proyectos, con la misión de identificar únicamente oportunidades de mejora críticas de FinOps/GreenOps en los cambios.</role>
+
+  <inputs>
+    <input name="staged_files" required="true"/>
+    <input name="story_number" required="true"/>
+    <input name="manual_context" required="true"/>
+  </inputs>
+
+  <process>
+    <step n="0" name="Checklist Inicial">
+      <action>Generar checklist conciso (3-7 items) del plan de análisis:</action>
+      <checklist>
+        - [ ] Identificar archivos con impacto en costos cloud o consumo de recursos
+        - [ ] Analizar patrones de uso de recursos computacionales
+        - [ ] Evaluar eficiencia en consultas y acceso a datos
+        - [ ] Revisar configuraciones de infraestructura y escalado
+        - [ ] Detectar recursos no liberados o memory leaks potenciales
+        - [ ] Generar reporte con hallazgos críticos
+      </checklist>
+    </step>
+
+    <step n="1" name="Análisis de Archivos Relevantes">
+      <action>Filtrar staged_files para archivos con impacto en costos/recursos:</action>
+      <file_types>
+        <type>Configuraciones de infraestructura (Terraform, CloudFormation, K8s manifests, Docker)</type>
+        <type>Código backend con acceso a bases de datos o servicios cloud</type>
+        <type>Lambdas, Functions, Workers, Jobs programados</type>
+        <type>Archivos de configuración de caché, colas, storage</type>
+        <type>Pipelines CI/CD con recursos de build</type>
+      </file_types>
+      <action>Si no hay archivos relevantes, retornar JSON vacío y terminar</action>
+      <validation>Confirmar cantidad de archivos a analizar</validation>
+    </step>
+
+    <step n="2" name="Análisis FinOps (Optimización de Costos)">
+      <focus_areas>
+        <area id="compute">
+          <name>Recursos Computacionales</name>
+          <checks>
+            <check>Instancias sobredimensionadas o subdimensionadas</check>
+            <check>Falta de auto-scaling o configuración ineficiente</check>
+            <check>Recursos always-on que podrían ser on-demand</check>
+            <check>Contenedores sin límites de recursos definidos</check>
+            <check>Lambdas con memoria/timeout excesivo</check>
+          </checks>
+        </area>
+        <area id="data">
+          <name>Almacenamiento y Datos</name>
+          <checks>
+            <check>Queries N+1 o consultas sin índices apropiados</check>
+            <check>Lectura de datos completos cuando se necesitan subconjuntos</check>
+            <check>Falta de caché para datos frecuentemente accedidos</check>
+            <check>Storage sin políticas de lifecycle o retención</check>
+            <check>Logs excesivos sin rotación o niveles apropiados</check>
+          </checks>
+        </area>
+        <area id="network">
+          <name>Transferencia y Red</name>
+          <checks>
+            <check>Transferencias cross-region innecesarias</check>
+            <check>Falta de compresión en respuestas/payloads grandes</check>
+            <check>Llamadas síncronas que podrían ser async/batch</check>
+            <check>Polling excesivo vs webhooks/eventos</check>
+          </checks>
+        </area>
+        <area id="services">
+          <name>Servicios Cloud</name>
+          <checks>
+            <check>Servicios premium cuando básicos son suficientes</check>
+            <check>Falta de Reserved Instances o Savings Plans para cargas predecibles</check>
+            <check>Recursos huérfanos (IPs, discos, snapshots sin usar)</check>
+          </checks>
+        </area>
+      </focus_areas>
+      <action>Clasificar cada hallazgo por impacto en costo: ALTO | MEDIO | BAJO</action>
+    </step>
+
+    <step n="3" name="Análisis GreenOps (Sostenibilidad)">
+      <focus_areas>
+        <area id="efficiency">
+          <name>Eficiencia Energética</name>
+          <checks>
+            <check>Algoritmos ineficientes con complejidad mejorable</check>
+            <check>Procesamiento redundante o duplicado</check>
+            <check>Loops innecesarios o iteraciones optimizables</check>
+            <check>Carga de recursos que no se utilizan</check>
+          </checks>
+        </area>
+        <area id="carbon">
+          <name>Huella de Carbono</name>
+          <checks>
+            <check>Workloads que podrían ejecutarse en horarios de baja demanda</check>
+            <check>Regiones cloud sin considerar factor de carbono</check>
+            <check>Builds/tests que se ejecutan más de lo necesario</check>
+            <check>Assets no optimizados (imágenes, bundles grandes)</check>
+          </checks>
+        </area>
+        <area id="resources">
+          <name>Uso Responsable de Recursos</name>
+          <checks>
+            <check>Memory leaks o recursos no liberados</check>
+            <check>Conexiones a DB/servicios no cerradas</check>
+            <check>Streams o file handles sin dispose</check>
+            <check>Event listeners no removidos</check>
+          </checks>
+        </area>
+      </focus_areas>
+      <action>Clasificar cada hallazgo por impacto ambiental: ALTO | MEDIO | BAJO</action>
+    </step>
+
+    <step n="4" name="Validación Cruzada">
+      <action>Verificar que el número de archivos analizados coincide con los encontrados</action>
+      <action>Si hay discrepancias, reanalizar los faltantes</action>
+      <action>Ejecutar git blame para obtener usuario y fecha de cada hallazgo</action>
+      <validation>Conteo final: archivos_encontrados == archivos_analizados</validation>
+    </step>
+
+    <step n="5" name="Priorización y Recomendaciones">
+      <action>Priorizar hallazgos por impacto combinado (costo + sostenibilidad)</action>
+      <action>Para hallazgos ALTO, incluir estimación de ahorro potencial si es posible</action>
+      <action>Agrupar quick-wins (cambios simples con alto impacto)</action>
+      <validation>Schema válido</validation>
+    </step>
+  </process>
+
+  <severity_classification>
+    <level name="ALTA">Impacto significativo en costos (>20% potencial) o recursos críticos mal gestionados</level>
+    <level name="MEDIA">Oportunidad de optimización con impacto moderado (5-20%)</level>
+    <level name="BAJA">Mejora menor o buena práctica no seguida</level>
+  </severity_classification>
+
+  <output format="markdown">
+### FinOps / GreenOps
+
+| Severidad | Categoría | Archivo | Línea | Problema | Impacto | Solución |
+|-----------|-----------|---------|-------|----------|---------|----------|
+| {{severity}} | {{category}} | {{file}} | {{line}} | {{issue}} | {{impact_description}} | {{solution_brief}} |
+
+**Resumen FinOps/GreenOps**: {{count}} hallazgos ({{alta}} ALTA, {{media}} MEDIA, {{baja}} BAJA)
+
+**Quick Wins Identificados**:
+{{#each quick_wins}}
+- {{description}} (Ahorro estimado: {{estimated_savings}})
+{{/each}}
+  </output>
+
+  <rules>
+    <rule>Solo reportar oportunidades de mejora CRÍTICAS - no micro-optimizaciones</rule>
+    <rule>Enfocarse en cambios con ROI claro y medible</rule>
+    <rule>Ignorar optimizaciones prematuras sin evidencia de problema</rule>
+    <rule>Ejecutar git blame para obtener usuario</rule>
+    <rule>NO incluir fragmentos de código completos - solo referencia file:line</rule>
+    <rule>Considerar contexto del proyecto antes de reportar (staging vs producción)</rule>
+    <rule>Priorizar hallazgos que afecten costos recurrentes sobre one-time</rule>
+  </rules>
+</task>

@@ -11,8 +11,20 @@
 <step n="0" goal="Validar Configuración del Proyecto">
 
 <critical>VALIDACIÓN BLOQUEANTE - El proyecto debe tener archivos de configuración obligatorios</critical>
+<critical>SI FALTA ALGÚN ARCHIVO BLOCKING: Mostrar output y DETENER. NO continuar al Step 1.</critical>
+<critical>PROHIBIDO: Ofrecer opciones "PAUSAR/CONTINUAR" o cualquier modo degradado</critical>
+<critical>PROHIBIDO: Preguntar al usuario cómo proceder cuando faltan archivos BLOCKING</critical>
 
 <invoke-protocol name="validate_project_prerequisites" />
+
+<rule type="ABSOLUTA">
+SI el protocolo reporta archivos BLOCKING faltantes:
+→ Tu respuesta TERMINA aquí
+→ NO mostrar opciones (1, 2, etc.)
+→ NO hacer preguntas
+→ NO proceder al Step 1
+→ El usuario DEBE ejecutar los workflows generadores y reiniciar
+</rule>
 
 </step>
 
