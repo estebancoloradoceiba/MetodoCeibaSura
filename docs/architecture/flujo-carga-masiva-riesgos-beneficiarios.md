@@ -6,10 +6,16 @@
 
 La **Carga Masiva de Riesgos y Beneficiarios** es un proceso crítico de negocio que permite a los expedidores de pólizas de Vida Grupo cargar de forma masiva (batch) información de asegurados y sus beneficiarios para pólizas colectivas corporativas. Este flujo soporta operaciones de:
 
+**Para Riesgos (Asegurados):**
 - **Ingreso**: Creación de nuevos riesgos (asegurados) en una póliza master
 - **Modificación**: Actualización de información de riesgos existentes
 - **Cancelación**: Baja de riesgos de la póliza
 - **Renovación**: Renovación de riesgos en procesos de renovación de póliza
+
+**Para Beneficiarios:**
+- **Modificación**: Creación/Actualización de beneficiarios para riesgos existentes
+- **Beneficiarios Completos**: Con tipo y número de documento (se busca contacto existente)
+- **Beneficiarios Dummy**: Sin identificación (solo nombres y datos básicos) - PersonDummy_Ext
 
 El proceso está diseñado para manejar **volúmenes masivos** (desde cientos hasta miles de registros) de manera **completamente asíncrona**, dividido en **dos fases independientes**:
 
@@ -22,7 +28,7 @@ Este diseño permite **procesamiento no bloqueante**, donde el usuario puede con
 
 **Enfoque Principal**: Documentación técnica end-to-end del flujo de trabajo de Carga Masiva  
 **Audiencia**: Desarrolladores, Arquitectos, Analistas de Negocio, DevOps  
-**Última Actualización**: 25 de Noviembre, 2025
+**Última Actualización**: 28 de Enero, 2026
 
 ### Componentes Involucrados
 
@@ -212,6 +218,113 @@ sequenceDiagram
         U->>UI: 55. Click en "Descargar Errores Fase X"
         UI->>APIM: 56. GET /massive-download/file/output-errors/...
         APIM->>FN_DOWN: 56.1. Solicitar archivo de errores
+```
+
+### 1.1. Flujo Específico: Carga Masiva de Beneficiarios
+
+```mermaid
+sequenceDiagram
+    participant U as Usuario Expedidor
+    participant WQ1 as Workqueue Enrichment
+    participant VAL as DefaultBeneficiaryValidation
+    participant TRANS as DefaultBeneficiaryTransformer
+    participant FACTORY as ContactCreationStrategyFactory
+    participant DUMMY as DummyContactCreationStrategy
+    participant COMPLETE as CompleteContactCreationStrategy
+    participant COMMON as CommonTransformer
+    participant DB as Oracle Database
+
+    Note over U,DB: FASE 2: Procesamiento de Beneficiarios en PolicyCenter
+
+    WQ1->>VAL: 1. Validar registro de beneficiario
+    VAL->>VAL: 2. validatePrimaryBeneficiary()
+    Note right of VAL: Campos obligatorios:<br/>- PRIMER_NOMBRE<br/>- PRIMER_APELLIDO<br/>- PARENTESCO<br/>- PORCENTAJE<br/>- CELULAR<br/>(TIPO_DOC y NUM_DOC son OPCIONALES)
+    
+    VAL->>VAL: 3. validateNumberAndTypeDocumentBeneficiary()
+    
+    alt Ambos campos vacíos (Beneficiario Dummy)
+        VAL->>VAL: 4a. Validación OK - Continuar como Dummy
+    else Ambos campos llenos (Beneficiario Completo)
+        VAL->>VAL: 4b. matchTypeAndNumberDocument(regex)
+        VAL->>VAL: 4c. Validación OK - Continuar como Completo
+    else Un campo vacío y otro lleno (Error)
+        VAL->>VAL: 4d. addFieldError("beneficiaryDocumentIncomplete")
+        VAL-->>WQ1: 4e. ValidationException
+    end
+    
+    WQ1->>TRANS: 5. transform(requestDTO, policyData)
+    TRANS->>TRANS: 6. createAdditionalInterest()
+    
+    loop Por cada beneficiario (1-5)
+        TRANS->>FACTORY: 7. getStrategy(documentType, documentNumber)
+        
+        alt Tipo y Número vacíos
+            FACTORY->>DUMMY: 8a. DummyContactCreationStrategy
+            DUMMY->>DUMMY: 9a. determineContactType() → TC_LFPERSONDUMMY
+            DUMMY->>DUMMY: 10a. new PersonDummy_Ext()
+            DUMMY->>DUMMY: 11a. populateContactData(firstName, lastName, etc.)
+            DUMMY->>DUMMY: 12a. createAddressDummy()
+            DUMMY-->>TRANS: 13a. PersonDummy_Ext contact
+        else Tipo y Número llenos
+            FACTORY->>COMPLETE: 8b. CompleteContactCreationStrategy
+            COMPLETE->>DB: 9b. searchContact(documentType, documentNumber)
+            DB-->>COMPLETE: 10b. Contact existente o null
+            COMPLETE-->>TRANS: 11b. Contact o null
+        end
+        
+        TRANS->>COMMON: 14. contactToAdditionalInterest(contact, requestDTO, number)
+        
+        alt Contact es PersonDummy_Ext
+            COMMON->>COMMON: 15a. setPersonDummyAdditionalInterestData()
+            COMMON->>COMMON: 16a. Mapear: FirstName, MiddleName, LastName, Particle
+            COMMON->>COMMON: 17a. toPrimaryAddress(contact.PrimaryAddress)
+        else Contact es Person/Company estándar
+            COMMON->>COMMON: 15b. setPersonAdditionalInterestData() o setCompanyAdditionalInterestData()
+            COMMON->>COMMON: 16b. Mapear datos desde CSV usando BeneficiaryTemplate
+        end
+        
+        COMMON-->>TRANS: 18. AdditionalInterestDTO
+        TRANS->>TRANS: 19. Asignar: BeneficiaryType, Relationship, ParticipationPercentage
+    end
+    
+    TRANS-->>WQ1: 20. PolicyDataExtDTO con AdditionalInterest[]
+    WQ1->>WQ1: 21. notifySuccess() → Guardar en MassiveUploadMessage_Ext.Response
+```
+
+### Tabla de Decisión: Creación de Beneficiarios
+
+| Tipo Documento | Número Documento | Estrategia | Resultado |
+|----------------|------------------|------------|-----------|
+| Vacío | Vacío | `DummyContactCreationStrategy` | Crea `PersonDummy_Ext` con datos básicos (nombres, dirección dummy) |
+| Lleno | Lleno | `CompleteContactCreationStrategy` | Busca contacto existente en BD, si no existe usa datos del CSV |
+| Vacío | Lleno | N/A | ❌ Error: "El tipo de documento y número de documento del beneficiario deben estar ambos diligenciados o ambos vacíos" |
+| Lleno | Vacío | N/A | ❌ Error: "El tipo de documento y número de documento del beneficiario deben estar ambos diligenciados o ambos vacíos" |
+
+### Arquitectura de Estrategias (Strategy Pattern)
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    PATRÓN STRATEGY PARA BENEFICIARIOS                   │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  ContactCreationStrategyFactory                                         │
+│  └── getStrategy(documentType, documentNumber)                          │
+│      │                                                                  │
+│      ├── if (ambos vacíos) ────────────► DummyContactCreationStrategy   │
+│      │                                   ├── createContact()            │
+│      │                                   │   └── new PersonDummy_Ext()  │
+│      │                                   └── populateContactData()      │
+│      │                                                                  │
+│      ├── if (ambos llenos) ────────────► CompleteContactCreationStrategy│
+│      │                                   ├── createContact()            │
+│      │                                   │   └── searchContact()        │
+│      │                                   └── return Contact o null      │
+│      │                                                                  │
+│      └── if (mixto) ───────────────────► DisplayableException           │
+│                                          └── "Documento incompleto"     │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
         FN_DOWN->>STORAGE: 56.2. Leer ErrorFaseX_{md5}.csv
         STORAGE-->>FN_DOWN: 56.3. Contenido del archivo
         FN_DOWN-->>APIM: 56.4. 200 OK + CSV data
@@ -442,6 +555,60 @@ sequenceDiagram
         UI->>UI: Actualizar tabla dashboard
     end
 ```
+
+---
+
+## 🏗️ **Componentes de PolicyCenter para Beneficiarios**
+
+### Estructura de Archivos
+
+```
+PolicyCenter/modules/configuration/gsrc/sura/pc/massiveupload/
+├── batch/
+│   └── enrichment/
+│       └── EnrichmentProcessing.gs          # Orquestador principal de Fase 2
+├── strategy/                                  # Patrón Strategy (NUEVO)
+│   ├── ContactCreationStrategy.gs            # Interface del patrón
+│   ├── ContactCreationStrategyFactory.gs     # Factory que decide estrategia
+│   ├── DummyContactCreationStrategy.gs       # Crea PersonDummy_Ext
+│   └── CompleteContactCreationStrategy.gs    # Busca contacto existente
+├── transformer/
+│   ├── DefaultBeneficiaryTransformer.gs      # Transformador de beneficiarios
+│   ├── common/
+│   │   └── CommonTransformer.gs              # Mapeo de contactos a DTOs
+│   └── factories/
+│       ├── TransformerFactoryProducer.gs     # Produce factories por tipo archivo
+│       └── BeneficiaryTransformerFactory.gs  # Crea transformadores de beneficiarios
+└── validations/
+    ├── OperationValidationBase.gs            # Validaciones base
+    └── factories/
+        ├── OperationValidationFactory.gs     # Produce validadores por operación
+        └── DefaultBeneficiaryValidation.gs   # Validaciones específicas beneficiarios
+```
+
+### Responsabilidades de Componentes
+
+| Componente | Responsabilidad | Cambios para Dummy |
+|------------|-----------------|-------------------|
+| `EnrichmentProcessing` | Orquestador: valida → transforma → notifica | Sin cambios (genérico) |
+| `OperationValidationFactory` | Crea validador según tipo archivo y operación | Limpieza código deprecado |
+| `DefaultBeneficiaryValidation` | Valida campos obligatorios y formato de documento | TIPO_DOC y NUM_DOC ahora opcionales, validación condicional |
+| `TransformerFactoryProducer` | Crea factory de transformadores según tipo archivo | Limpieza código deprecado |
+| `DefaultBeneficiaryTransformer` | Transforma CSV a PolicyDataExtDTO con beneficiarios | Usa `ContactCreationStrategyFactory` |
+| `ContactCreationStrategyFactory` | Decide qué estrategia usar según campos de documento | **NUEVO** - Implementa tabla de decisión |
+| `DummyContactCreationStrategy` | Crea `PersonDummy_Ext` con datos básicos | **NUEVO** - Reutiliza lógica existente |
+| `CompleteContactCreationStrategy` | Busca contacto existente por documento | **NUEVO** - Encapsula búsqueda |
+| `CommonTransformer` | Mapea Contact a AdditionalInterestDTO | Soporte para `PersonDummy_Ext` |
+
+### Entidades de Guidewire Utilizadas
+
+| Entidad | Tipo | Propósito en Carga Masiva |
+|---------|------|---------------------------|
+| `MassiveUploadMessage_Ext` | Entity | Almacena registro CSV, estado, request/response de cada registro |
+| `PersonDummy_Ext` | Entity (extiende Person) | Beneficiario persona sin identificación formal |
+| `CompanyDummy_Ext` | Entity (extiende Company) | Beneficiario empresa sin identificación formal (no usado en beneficiarios) |
+| `PolicyPeriod` | Entity (core) | Período de póliza donde se agregan beneficiarios |
+| `Contact` | Entity (core) | Clase base para Person, Company, PersonDummy_Ext |
 
 ---
 
@@ -837,18 +1004,34 @@ timeline
 - **Documentación de Componentes**:
   - [PolicyCenter - Arquitectura Detallada](./architecture-policycenter.md)
   - [VidaGrupoIAC - Infraestructura como Código](./architecture-VidaGrupoIAC.md)
+  - [ADR-001: Refactorización Carga Masiva Beneficiarios Dummy](./adr-001-refactorizacion-carga-masiva-beneficiarios-dummy.md)
+- **Historias de Usuario Relacionadas**:
+  - [Historia #825041: Habilitar Creación de Beneficiarios Dummy por Carga Masiva](../stories/825041.habilitar-creacion-de-beneficiarios-dummy-por-carga-masiva-en-vida-grupo.story.md)
 - **Configuración**: 
   - PolicyCenter: `./PolicyCenter/modules/configuration/config/web/pcf/`
   - VidaGrupoIAC: `./VidaGrupoIAC/modules/`
+  - Azure Validations: `./VidaGrupoIAC/modules/datafactory/regex.csv`
 - **Código Fuente**:
   - JavaScript Client: `./PolicyCenter/modules/configuration/deploy/resources/javascript/massiveLoad.js`
   - Workqueue Enrichment: `./PolicyCenter/modules/configuration/gsrc/sura/pc/massiveupload/batch/enrichment/EnrichmentProcessing.gs`
   - Workqueue Message Process: `./PolicyCenter/modules/configuration/gsrc/sura/pc/massiveupload/plugin/messaging/MassiveUploadMessageProcess.gs`
   - Edge Processing: `./PolicyCenter/modules/configuration/gsrc/sura/pc/massiveupload/batch/edge/EdgeProcessing.gs`
+  - **Beneficiarios - Validación**: `./PolicyCenter/modules/configuration/gsrc/sura/pc/massiveupload/validations/factories/DefaultBeneficiaryValidation.gs`
+  - **Beneficiarios - Transformación**: `./PolicyCenter/modules/configuration/gsrc/sura/pc/massiveupload/transformer/DefaultBeneficiaryTransformer.gs`
+  - **Beneficiarios - Estrategias**: `./PolicyCenter/modules/configuration/gsrc/sura/pc/massiveupload/strategy/`
   - Data Factory Pipelines: `./VidaGrupoIAC/modules/datafactory/pipelines/`
 
 ---
 
+## 📝 **Historial de Cambios**
+
+| Versión | Fecha | Autor | Descripción |
+|---------|-------|-------|-------------|
+| 1.0 | 25-Nov-2025 | Arquitecto | Documentación inicial del flujo de carga masiva |
+| 1.1 | 28-Ene-2026 | Developer | Agregado flujo específico de beneficiarios con soporte para Dummy (Historia #825041) |
+
+---
+
 _Documentación generada con Método Ceiba - Arquitecto_  
-_Última actualización: 25 de Noviembre, 2025_  
-_Versión: 1.0_
+_Última actualización: 28 de Enero, 2026_  
+_Versión: 1.1_
