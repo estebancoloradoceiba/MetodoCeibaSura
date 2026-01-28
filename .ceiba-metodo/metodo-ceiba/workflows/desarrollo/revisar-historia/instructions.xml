@@ -1,383 +1,469 @@
 <workflow>
   <critical>The workflow execution engine is governed by: {project-root}/.ceiba-metodo/core/tasks/workflow.xml</critical>
   <critical>You MUST have already loaded and processed: {installed_path}/workflow.yaml</critical>
-  <critical>Communicate all responses in {communication_language} and language MUST be tailored to {user_skill_level}</critical>
+  <critical>Communicate all responses in {communication_language}</critical>
   <critical>Generate all documents in {document_output_language}</critical>
-  <critical>CONTEXT BUDGET: Máximo 12000 tokens totales para prevenir context exhaustion</critical>
 
-  <!-- ════════════════════════════════════════════════════════════════════════ -->
-  <!-- RESTRICCIONES ABSOLUTAS DEL ROL DE REVIEWER                              -->
-  <!-- ════════════════════════════════════════════════════════════════════════ -->
-  
+  <critical id="SUBAGENT_STRATEGY">
+    🎯 ESTRATEGIA: Un SUBAGENTE especializado por cada tipo de revisión.
+    Cada subagente tiene contexto limpio y foco total en su especialidad.
+    El agente principal (tú) solo coordina y consolida resultados.
+  </critical>
+
   <critical id="NO_IMPLEMENTATION">
-    🚫 PROHIBIDO IMPLEMENTAR CÓDIGO 🚫
-    
-    Este workflow es SOLO para REVISIÓN. NUNCA debes:
-    - Modificar archivos de código fuente (.ts, .js, .java, .py, etc.)
-    - Crear nuevos archivos de implementación
-    - Ejecutar comandos que modifiquen el código
-    - Hacer fixes, correcciones o mejoras al código
-    
-    Si el usuario pide implementar cambios, corregir código, o hacer fixes:
-    → RECHAZAR la solicitud
-    → Responder: "Como Peer Reviewer, mi rol es únicamente REVISAR código, no implementarlo. 
-       Para implementar los cambios solicitados, ejecuta el workflow *desarrollar-historia-usuario 
-       con el agente Developer."
-    
-    El ÚNICO archivo que este workflow puede modificar es el archivo de historia (.story.md)
-    para agregar la sección de revisión y actualizar el Status.
+    🚫 ROL: REVIEWER - Solo detectas problemas, NO implementas fixes.
+    Si el usuario pide implementar → rechaza y sugiere *desarrollar-historia-usuario
   </critical>
 
-  <critical id="MANDATORY_PERSISTENCE">
-    📝 PERSISTENCIA OBLIGATORIA 📝
+  <step n="1" goal="Recopilar información y validar con usuario">
+    <critical>🚫 ORQUESTADOR: Solo recopilar NOMBRES de archivos. NO ejecutar diff de contenido. Los subagentes harán el diff.</critical>
     
-    ANTES de mostrar el resultado final al usuario, DEBES:
-    1. Escribir la sección "## Revisión de Código (Peer Review)" en {{story_path}}
-    2. Actualizar el campo "Status:" según la decisión
-    3. Verificar que los cambios se guardaron correctamente
-    
-    Si la persistencia falla:
-    → Reintentar hasta 3 veces
-    → Si sigue fallando, mostrar ERROR CRÍTICO y el contenido que debía persistirse
-    
-    NUNCA mostrar "Revisión completada" sin haber persistido en el archivo.
-  </critical>
-
-  <critical>
-    DEBES ejecutar 5 sub-workflows EN SECUENCIA.
-    NO ofrezcas alternativas. NO hagas "revisión consolidada".
-    Este workflow está diseñado para ser EXHAUSTIVO.
-    
-    Los 5 sub-workflows son:
-    [1/5] contexto-tecnico      → Carga arquitectura y detecta stack
-    [2/5] validacion-implementacion → ACs + coherencia arquitectónica  
-    [3/5] analisis-codigo       → Seguridad + Backend + Frontend
-    [4/5] validacion-testing    → Tests unitarios + integración
-    [5/5] decision-outcome      → Decisión final
-    
-    Para CADA sub-workflow:
-    1. Mostrar "═══ EJECUTANDO [X/5]: nombre ═══"
-    2. Cargar instructions.md del sub-workflow
-    3. Ejecutar el análisis
-    4. Generar output en formato Markdown (NO JSON)
-    5. Mostrar "[X/5] ✅ COMPLETADO"
-  </critical>
-
-  <!-- ════════════════════════════════════════════════════════════════════════ -->
-  <!-- STEP -1: Validar Configuración del Proyecto                              -->
-  <!-- ════════════════════════════════════════════════════════════════════════ -->
-  
-  <step n="-1" goal="Validar configuración del proyecto">
-    <critical>VALIDACIÓN BLOQUEANTE - El proyecto debe tener archivos de configuración obligatorios</critical>
-    <critical>SI FALTA ALGÚN ARCHIVO BLOCKING: Mostrar output y DETENER. NO continuar al Step 0.</critical>
-    <critical>PROHIBIDO: Ofrecer opciones "continuar sin validación" o cualquier modo degradado</critical>
-    <critical>PROHIBIDO: Preguntar al usuario cómo proceder cuando faltan archivos BLOCKING</critical>
-    
-    <invoke-protocol name="validate_project_prerequisites" />
-    
-    <rule type="ABSOLUTA">
-      SI el protocolo reporta archivos BLOCKING faltantes:
-      → Tu respuesta TERMINA aquí
-      → NO mostrar opciones (1, 2, etc.)
-      → NO hacer preguntas  
-      → NO proceder al Step 0
-      → El usuario DEBE ejecutar los workflows generadores y reiniciar
-    </rule>
-  </step>
-
-  <!-- ════════════════════════════════════════════════════════════════════════ -->
-  <!-- STEP 0: Localizar historia                                               -->
-  <!-- ════════════════════════════════════════════════════════════════════════ -->
-  
-  <step n="0" goal="Localizar historia y preparar archivos">
     <ask>¿Qué historia de usuario o incidente deseas revisar? (número o ruta)</ask>
     
     <action>Determinar tipo de documento (historia si .story.md o incidente si .incident.md o contiene INC-)</action>
     <action>Buscar archivo en {dev_story_location} o {incident_location}</action>
     <action>Leer contenido completo del archivo</action>
-    <action>Extraer: Status, ACs, Tasks, Lista de Archivos</action>
-    <action>Obtener archivos modificados (git o Lista de Archivos)</action>
+    <action>Extraer: Status, ACs, Tasks</action>
     
     <check if="Status no válido para revisión">
-      <halt>Estado incorrecto: {{estado_actual}}</halt>
+      <action>Verificar Status en: Lista para Revisión, Ready for Review, Desarrollo Completado, En Revisión</action>
+      <action if="Status no válido">Mostrar error y detener</action>
     </check>
     
-    <output>{{document_type}} {{story_number}} - {{staged_files.length}} archivos a revisar</output>
+    <ask>📋 MODO DE REVISIÓN
+
+¿Cómo quieres revisar?
+1. **LOCAL** - Cambios locales sin commit (staged + unstaged)
+2. **COMMIT** - Desde un commit específico (ej: abc1234 o main..feature/xyz)
+
+Indica opción y, si aplica, el commit/rango.</ask>
+
+    <action>Según respuesta, definir comandos git:
+      - LOCAL: 
+        {{cmd_listar}}: "git diff --name-only" (lista archivos modificados)
+        {{cmd_diff}}: "git diff" (obtiene contenido de cambios)
+      - COMMIT: 
+        {{cmd_listar}}: "git diff --name-only {{commit_ref}}"
+        {{cmd_diff}}: "git diff {{commit_ref}}"
+    </action>
+    
+    <action>Si LOCAL: obtener rama actual con "git branch --show-current" → {{rama_actual}}</action>
+    <action>Detectar repositorios en workspace (buscar directorios con .git)</action>
+    <action>Para cada repositorio, ejecutar {{cmd_listar}} y recopilar archivos</action>
+    
+    <ask>📋 VALIDACIÓN DE ALCANCE
+
+**Modo:** {{modo}} (LOCAL | COMMIT)
+**Rama actual:** {{rama_actual}} (si LOCAL)
+**Comando para diff:** {{cmd_diff}}
+**Repositorios detectados:**
+{{lista_repos_con_archivos}}
+
+¿Es correcta esta información?
+- Confirma para continuar
+- Indica repos/archivos a agregar o quitar</ask>
+
+    <action>Esperar confirmación del usuario</action>
+    <action>Guardar: {{modo}}, {{rama_actual}}, {{cmd_diff}}, {{repos_confirmados}} (lista de {repo_path, archivos[]})</action>
+    <action>Extraer ACs del documento</action>
   </step>
 
-  <!-- ════════════════════════════════════════════════════════════════════════ -->
-  <!-- STEP 0.5: Validar Cumplimiento del Flujo de Desarrollo (PRERREQUISITO)   -->
-  <!-- ════════════════════════════════════════════════════════════════════════ -->
-  
-  <step n="0.5" goal="Validar que el documento completó el flujo de desarrollo Método Ceiba">
-    <output>═══ VALIDACIÓN PRERREQUISITO: Flujo de Desarrollo Método Ceiba ═══</output>
+  <step n="2" goal="Lanzar subagentes especializados">
+    <critical>Cada subagente recibe: cmd_diff + repos_confirmados. Subagente identifica qué archivos le aplican y obtiene el diff de cada uno.</critical>
     
-    <critical>Este diagnóstico es BLOQUEANTE - si falla, NO continuar con la revisión</critical>
-    
-    <task-invoke file="{installed_path}/tasks/diagnostic-metodo-flujo-desarrollo.xml">
-      <input name="story_file_content" value="{{story_file_content}}" />
-      <input name="story_number" value="{{story_number}}" />
-      <input name="document_type" value="{{document_type}}" />
-    </task-invoke>
-    
-    <expected-output format="markdown">
-      ### Cumplimiento del Flujo de Desarrollo (Método Ceiba)
-      
-      | Fase | Estado | Evidencia | Acción Requerida |
-      |------|--------|-----------|------------------|
-      ...
-      
-      **Resumen**: X% cumplimiento
-    </expected-output>
-    
-    <check if="has_blocking_issues == true">
-      <halt>
-⛔ REVISIÓN BLOQUEADA
+    <action>Para cada subagente, incluir en prompt:
 
-El documento NO ha completado todas las fases obligatorias del flujo de desarrollo.
-Por favor ejecuta los workflows indicados en el reporte antes de solicitar revisión.
+🚫 RESTRICCIÓN: Revisa ÚNICAMENTE archivos de {{repos_confirmados}}. NO leas otros archivos.
 
-{{blocking_issues_detail}}
-      </halt>
-    </check>
-    
-    <check if="has_warnings == true">
-      <output>⚠️ ADVERTENCIAS: {{warnings_summary}}</output>
-      <output>Continuando con la revisión...</output>
-    </check>
-    
-    <output>✅ Flujo de desarrollo validado - Continuando con revisión de código</output>
+MODO: {{modo}} (LOCAL | COMMIT)
+RAMA ACTUAL: {{rama_actual}}
+COMANDO DIFF: {{cmd_diff}}
+REPOSITORIOS Y ARCHIVOS A REVISAR:
+{{repos_confirmados}} (formato: repo_path → [archivos])
+
+TU PROCESO:
+1. De {{repos_confirmados}}, identifica qué archivos aplican a tu especialidad
+2. Para cada archivo aplicable, navega al repo y ejecuta: {{cmd_diff}} -- {{archivo}}
+3. Revisa SOLO las líneas cambiadas (+ y -)
+4. Retorna JSON con hallazgos (o vacío si no hay problemas)
+    </action>
+
+    <!-- SUBAGENTE: FLUJO_METODO_CEIBA -->
+    <action>
+      runSubagent({
+        description: "Revisar FLUJO_METODO_CEIBA",
+        prompt: "Eres un AUDITOR DE PROCESO CEIBA.
+
+DOCUMENTO A REVISAR:
+{{story_file_content}}
+
+TIPO: {{tipo_documento}} (historia | incidente)
+
+🚫 NO VALIDAR: Estado de tareas manuales (ej: 'Revisión de pares', 'QA Manual'). 
+Tu labor es SOLO revisar que el documento tenga las secciones requeridas, NO verificar completitud de tareas manuales.
+
+SI ES HISTORIA:
+• Sección 'Análisis Arquitectónico' presente y completada
+• Sección 'Refinamiento Técnico' o 'Tareas de Implementación' presente
+• Sección 'Estimación' con valores de complejidad
+• Sección 'Dev Agent Record' o evidencia de desarrollo completado
+
+SI ES INCIDENTE:
+• Sección 'Recepción del Error' (PO) - Status: Triaged
+• Sección 'Diagnóstico' (Architect) - Root Cause Analysis completado
+• Sección 'Refinamiento Técnico' o 'Tareas de Implementación' presente
+• Sección 'Dev Agent Record' o evidencia de desarrollo completado
+
+BLOQUEO: Falta CUALQUIER sección obligatoria (NO tareas manuales pendientes).
+
+RESPONDE SOLO con JSON:
+{\"tipo\": \"FLUJO_METODO_CEIBA\", \"hallazgos\": [{\"archivo\": \"documento\", \"linea\": 0, \"severidad\": \"ALTA|MEDIA|BAJA\", \"problema\": \"...\", \"sugerencia\": \"...\"}]}"
+      })
+    </action>
+
+    <!-- SUBAGENTE: IMPLEMENTACION_VS_REQUISITOS -->
+    <action if="ac_list no vacío">
+      runSubagent({
+        description: "Revisar IMPLEMENTACION_VS_REQUISITOS",
+        prompt: "Eres un AUDITOR DE REQUISITOS.
+
+MODO: {{modo}} | RAMA: {{rama_actual}}
+COMANDO DIFF: {{cmd_diff}}
+REPOSITORIOS: {{repos_confirmados}}
+
+ACCEPTANCE CRITERIA:
+{{ac_list}}
+
+TU PROCESO:
+1. Identifica archivos de código de producción (excluyendo tests)
+2. Para cada archivo, ejecuta: {{cmd_diff}} -- {{archivo}}
+3. Analiza los cambios contra cada AC
+
+POR CADA AC VALIDAR:
+• Funcionalidad correcta según descripción del AC
+• Manejo de errores y casos borde
+• Validaciones necesarias implementadas
+
+RESPONDE SOLO con JSON:
+{\"tipo\": \"IMPLEMENTACION_VS_REQUISITOS\", \"hallazgos\": [{\"archivo\": \"...\", \"linea\": N, \"severidad\": \"ALTA|MEDIA|BAJA\", \"problema\": \"AC #N: ...\", \"sugerencia\": \"...\"}]}"
+      })
+    </action>
+
+    <!-- SUBAGENTE: BACKEND -->
+    <action>
+      runSubagent({
+        description: "Revisar BACKEND",
+        prompt: "Eres un ARQUITECTO BACKEND.
+
+MODO: {{modo}} | RAMA: {{rama_actual}}
+COMANDO DIFF: {{cmd_diff}}
+REPOSITORIOS: {{repos_confirmados}}
+
+TU PROCESO:
+1. Identifica archivos de código backend (excluyendo tests)
+2. Si no hay archivos backend, retorna hallazgos vacío
+3. Para cada archivo backend, ejecuta: {{cmd_diff}} -- {{archivo}}
+4. Revisa SOLO los cambios (líneas + y -)
+
+CRITERIOS (revisar SOLO estos):
+• Problemas de arquitectura que afectan mantenibilidad o estabilidad
+• Manejo de errores (try/catch apropiados, excepciones tipadas, logging)
+• Implementaciones que NO respetan la arquitectura del proyecto
+• Integraciones sin tolerancia a fallos (timeouts, reintentos, circuit breaker)
+
+NO REVISAR: compilación, rendimiento, seguridad, archivos que no te aplican.
+
+RESPONDE SOLO con JSON:
+{\"tipo\": \"BACKEND\", \"hallazgos\": [{\"archivo\": \"...\", \"linea\": N, \"severidad\": \"ALTA|MEDIA|BAJA\", \"problema\": \"...\", \"sugerencia\": \"...\"}]}"
+      })
+    </action>
+
+    <!-- SUBAGENTE: SEGURIDAD (BOLA) -->
+    <action>
+      runSubagent({
+        description: "Revisar SEGURIDAD",
+        prompt: "Eres un AUDITOR DE SEGURIDAD especializado en BOLA (Broken Object Level Authorization).
+
+MODO: {{modo}} | RAMA: {{rama_actual}}
+COMANDO DIFF: {{cmd_diff}}
+REPOSITORIOS: {{repos_confirmados}}
+
+TU PROCESO:
+1. Identifica archivos de código backend y configuración
+2. Si no hay archivos aplicables, retorna hallazgos vacío
+3. Para cada archivo, ejecuta: {{cmd_diff}} -- {{archivo}}
+4. Analiza SOLO los cambios
+
+SUPERFICIES A AUDITAR: REST, GraphQL, SOAP, gRPC, WebSocket, colas/eventos, jobs, archivos/URLs prefirmadas, buscadores/reportes, repositorios/ORM.
+
+PROCESO DE AUDITORÍA:
+1. Verificar autorización a nivel de recurso
+2. Seguir cadena controller → service → repository
+3. Buscar validaciones de ownership
+4. Clasificar: SEGURO (tiene validación) / VULNERABLE (no tiene)
+
+VULNERABLE = Usuario puede acceder/modificar recursos que NO le pertenecen.
+
+RESPONDE SOLO con JSON:
+{\"tipo\": \"SEGURIDAD\", \"hallazgos\": [{\"archivo\": \"...\", \"linea\": N, \"severidad\": \"ALTA|MEDIA|BAJA\", \"problema\": \"...\", \"sugerencia\": \"...\"}]}"
+      })
+    </action>
+
+    <!-- SUBAGENTE: PENTESTING -->
+    <action>
+      runSubagent({
+        description: "Revisar PENTESTING",
+        prompt: "Eres un EXPERTO EN ETHICAL HACKING Y PENTESTING.
+
+MODO: {{modo}} | RAMA: {{rama_actual}}
+COMANDO DIFF: {{cmd_diff}}
+REPOSITORIOS: {{repos_confirmados}}
+
+TU PROCESO:
+1. Identifica archivos de código fuente
+2. Si no hay archivos de código, retorna hallazgos vacío
+3. Para cada archivo, ejecuta: {{cmd_diff}} -- {{archivo}}
+4. Busca vulnerabilidades SOLO en los cambios
+
+VULNERABILIDADES A BUSCAR (OWASP Top 10):
+• Inyección (SQL, NoSQL, LDAP, OS Command, HTML)
+• Falta de sanitización de entrada
+• Falta de rate limiting en endpoints sensibles
+• Autenticación rota (tokens débiles, sesiones sin expirar)
+• Exposición de datos sensibles (logs, respuestas de error, headers)
+• XXE, Deserialización insegura, SSRF
+• Security misconfiguration (CORS, headers)
+
+NO REVISAR: BOLA/IDOR (cubierto por SEGURIDAD).
+
+RESPONDE SOLO con JSON:
+{\"tipo\": \"PENTESTING\", \"hallazgos\": [{\"archivo\": \"...\", \"linea\": N, \"severidad\": \"ALTA|MEDIA|BAJA\", \"problema\": \"...\", \"sugerencia\": \"...\"}]}"
+      })
+    </action>
+
+    <!-- SUBAGENTE: CRIPTOGRAFIA_POSCUANTICA -->
+    <action>
+      runSubagent({
+        description: "Revisar CRIPTOGRAFIA_POSCUANTICA",
+        prompt: "Eres un EXPERTO EN SEGURIDAD CRIPTOGRÁFICA POSCUÁNTICA.
+
+MODO: {{modo}} | RAMA: {{rama_actual}}
+COMANDO DIFF: {{cmd_diff}}
+REPOSITORIOS: {{repos_confirmados}}
+
+TU PROCESO:
+1. Identifica archivos de código backend y configuración
+2. Si no hay archivos aplicables, retorna hallazgos vacío
+3. Para cada archivo, ejecuta: {{cmd_diff}} -- {{archivo}}
+4. Busca uso de criptografía SOLO en los cambios
+
+ALGORITMOS VULNERABLES A COMPUTACIÓN CUÁNTICA:
+• RSA (cualquier tamaño de clave)
+• ECDSA, ECDH (curvas elípticas)
+• DSA, DH (Diffie-Hellman clásico)
+• MD5, SHA-1 (ya obsoletos)
+
+BUSCAR en cambios:
+• Uso de algoritmos vulnerables en cifrado, firmas, intercambio de claves
+• Configuraciones TLS/SSL con suites no resistentes a cuántica
+• Certificados con algoritmos vulnerables
+
+RECOMENDAR migración a: CRYSTALS-Kyber, CRYSTALS-Dilithium, SPHINCS+, esquemas híbridos.
+
+RESPONDE SOLO con JSON:
+{\"tipo\": \"CRIPTOGRAFIA_POSCUANTICA\", \"hallazgos\": [{\"archivo\": \"...\", \"linea\": N, \"severidad\": \"ALTA|MEDIA|BAJA\", \"problema\": \"...\", \"sugerencia\": \"...\"}]}"
+      })
+    </action>
+
+    <!-- SUBAGENTE: FRONTEND -->
+    <action>
+      runSubagent({
+        description: "Revisar FRONTEND",
+        prompt: "Eres un ARQUITECTO FRONTEND.
+
+MODO: {{modo}} | RAMA: {{rama_actual}}
+COMANDO DIFF: {{cmd_diff}}
+REPOSITORIOS: {{repos_confirmados}}
+
+TU PROCESO:
+1. Identifica archivos de código frontend (excluyendo tests)
+2. Si no hay archivos frontend, retorna hallazgos vacío
+3. Para cada archivo, ejecuta: {{cmd_diff}} -- {{archivo}}
+4. Revisa SOLO los cambios
+
+CRITERIOS:
+• Problemas de arquitectura que afectan mantenibilidad
+• Problemas que afectan estabilidad
+• Manejo de errores inadecuado o inexistente
+• Implementaciones que NO respetan la arquitectura del proyecto
+
+NO REVISAR: compilación, rendimiento, seguridad.
+
+RESPONDE SOLO con JSON:
+{\"tipo\": \"FRONTEND\", \"hallazgos\": [{\"archivo\": \"...\", \"linea\": N, \"severidad\": \"ALTA|MEDIA|BAJA\", \"problema\": \"...\", \"sugerencia\": \"...\"}]}"
+      })
+    </action>
+
+    <!-- SUBAGENTE: TESTS INTEGRACIÓN -->
+    <action>
+      runSubagent({
+        description: "Revisar TESTS_INTEGRACION",
+        prompt: "Eres un ARQUITECTO DE CALIDAD enfocado en pruebas de integración.
+
+MODO: {{modo}} | RAMA: {{rama_actual}}
+COMANDO DIFF: {{cmd_diff}}
+REPOSITORIOS: {{repos_confirmados}}
+
+TU PROCESO:
+1. Identifica archivos de test de integración
+2. Si no hay archivos de integración, retorna hallazgos vacío
+3. Para cada archivo, ejecuta: {{cmd_diff}} -- {{archivo}}
+4. Revisa SOLO los cambios
+
+CRITERIOS:
+1. Patrón Arrange-Act-Assert claramente definido
+2. Test Data Builder para crear objetos (no constructores directos)
+3. NO mocks de servicios/handlers/repos internos (debe ser integración REAL)
+
+EXCEPCIONES VÁLIDAS: ApplicationMock (Java), mocks de APIs externas.
+
+RESPONDE SOLO con JSON:
+{\"tipo\": \"TESTS_INTEGRACION\", \"hallazgos\": [{\"archivo\": \"...\", \"linea\": N, \"severidad\": \"ALTA|MEDIA|BAJA\", \"problema\": \"...\", \"sugerencia\": \"...\"}]}"
+      })
+    </action>
+
+    <!-- SUBAGENTE: TESTS UNITARIOS -->
+    <action>
+      runSubagent({
+        description: "Revisar TESTS_UNITARIOS",
+        prompt: "Eres un ARQUITECTO DE CALIDAD enfocado en pruebas unitarias.
+
+MODO: {{modo}} | RAMA: {{rama_actual}}
+COMANDO DIFF: {{cmd_diff}}
+REPOSITORIOS: {{repos_confirmados}}
+
+TU PROCESO:
+1. Identifica archivos de test unitario (excluyendo tests de integración)
+2. Si no hay archivos de test unitario, retorna hallazgos vacío
+3. Para cada archivo, ejecuta: {{cmd_diff}} -- {{archivo}}
+4. Revisa SOLO los cambios
+
+CRITERIOS:
+1. Patrón Arrange-Act-Assert claramente definido
+2. Test Data Builder para crear objetos
+3. Uso correcto de mocks: verify() en Assert
+
+RESPONDE SOLO con JSON:
+{\"tipo\": \"TESTS_UNITARIOS\", \"hallazgos\": [{\"archivo\": \"...\", \"linea\": N, \"severidad\": \"ALTA|MEDIA|BAJA\", \"problema\": \"...\", \"sugerencia\": \"...\"}]}"
+      })
+    </action>
+
+    <!-- SUBAGENTE: CICD -->
+    <action>
+      runSubagent({
+        description: "Revisar CICD",
+        prompt: "Eres un ARQUITECTO DEVOPS especializado en pipelines CI/CD.
+
+MODO: {{modo}} | RAMA: {{rama_actual}}
+COMANDO DIFF: {{cmd_diff}}
+REPOSITORIOS: {{repos_confirmados}}
+
+TU PROCESO:
+1. Identifica archivos de pipelines CI/CD
+2. Si no hay archivos CI/CD, retorna hallazgos vacío
+3. Para cada archivo, ejecuta: {{cmd_diff}} -- {{archivo}}
+4. Revisa SOLO los cambios
+
+TAREAS OBLIGATORIAS en pipeline:
+• build, test
+• sonar (debe detener si quality gate falla)
+• análisis de vulnerabilidades (dependency track o similar)
+• análisis de licencias
+• análisis de secretos (git leaks o similar)
+• despliegue a producción Y (pruebas O desarrollo)
+
+BACKEND adicional: pruebas carga, DAST, mutation testing, pruebas arquitectura.
+FRONTEND adicional: pruebas funcionales, NO --legacy-peer-deps.
+
+RESPONDE SOLO con JSON:
+{\"tipo\": \"CICD\", \"hallazgos\": [{\"archivo\": \"...\", \"linea\": N, \"severidad\": \"ALTA|MEDIA|BAJA\", \"problema\": \"...\", \"sugerencia\": \"...\"}]}"
+      })
+    </action>
+
+    <!-- SUBAGENTE: FINOPS/GREENOPS -->
+    <action>
+      runSubagent({
+        description: "Revisar FINOPS_GREENOPS",
+        prompt: "Eres un EXPERTO EN FINOPS/GREENOPS.
+
+MODO: {{modo}} | RAMA: {{rama_actual}}
+COMANDO DIFF: {{cmd_diff}}
+REPOSITORIOS: {{repos_confirmados}}
+
+TU PROCESO:
+1. Identifica archivos de código fuente
+2. Si no hay archivos de código, retorna hallazgos vacío
+3. Para cada archivo, ejecuta: {{cmd_diff}} -- {{archivo}}
+4. Busca problemas de eficiencia SOLO en los cambios
+
+BUSCAR problemas CRÍTICOS de costos/eficiencia:
+• Queries N+1, llamadas redundantes
+• Recursos no liberados (conexiones, streams)
+• Algoritmos de complejidad alta evitable
+• Cacheo ausente donde beneficiaría
+• Llamadas síncronas que podrían ser async/batch
+• Procesamiento redundante
+• Uso ineficiente de memoria
+
+Solo reportar problemas CRÍTICOS con impacto medible.
+
+RESPONDE SOLO con JSON:
+{\"tipo\": \"FINOPS_GREENOPS\", \"hallazgos\": [{\"archivo\": \"...\", \"linea\": N, \"severidad\": \"ALTA|MEDIA|BAJA\", \"problema\": \"...\", \"sugerencia\": \"...\"}]}"
+      })
+    </action>
   </step>
 
-  <!-- ════════════════════════════════════════════════════════════════════════ -->
-  <!-- STEP 1: Contexto Técnico [1/5]                                           -->
-  <!-- ════════════════════════════════════════════════════════════════════════ -->
-  
-  <step n="1" goal="Cargar contexto técnico">
-    <output>═══ EJECUTANDO [1/5]: contexto-tecnico ═══</output>
-    
-    <invoke path="{installed_path}/sub-workflows/1-contexto-tecnico/">
-      <input>staged_files, architecture_location</input>
-    </invoke>
-    
-    <action>Almacenar en {{manual_context}}: stack, docs, GPS arquitectónico</action>
-    
-    <output>[1/5] ✅ contexto-tecnico COMPLETADO - Stack: {{stack}}, Docs: {{docs_count}}</output>
+  <step n="3" goal="Consolidar resultados de subagentes">
+    <action>Parsear JSON de cada subagente y unificar todos los hallazgos</action>
+    <action>Eliminar resultados duplicados (mismo archivo + misma línea + problema similar)</action>
+    <action>Contar por severidad: alta_count, media_count, baja_count</action>
   </step>
 
-  <!-- ════════════════════════════════════════════════════════════════════════ -->
-  <!-- STEP 2: Validación de Implementación [2/5]                               -->
-  <!-- ════════════════════════════════════════════════════════════════════════ -->
-  
-  <step n="2" goal="Validar implementación vs requisitos">
-    <output>═══ EJECUTANDO [2/5]: validacion-implementacion ═══</output>
-    
-    <invoke path="{installed_path}/sub-workflows/2-validacion-implementacion/">
-      <input>story_context, staged_files, manual_context</input>
-    </invoke>
-    
-    <expected-output format="markdown">
-      ## [2/5] Validación de Implementación
-      
-      ### Criterios de Aceptación
-      | AC | Estado | Implementación | Tests | Gaps |
-      |----|--------|----------------|-------|------|
-      ...
-      **Resumen**: X/Y ACs cubiertos
-      
-      ### Coherencia Arquitectónica
-      | Severidad | Tipo | Issue | Archivos |
-      ...
-      **Resumen**: N issues
-    </expected-output>
-    
-    <action>Agregar hallazgos a {{all_findings}}</action>
-    
-    <output>[2/5] ✅ validacion-implementacion COMPLETADO - ACs: {{ac_covered}}/{{ac_total}}, Issues: {{coherence_count}}</output>
+  <step n="4" goal="Validar con usuario">
+    <action>Mostrar tabla consolidada de hallazgos al usuario</action>
+    <ask>Revisa los hallazgos:
+- Si todos aplican → confirma para persistir
+- Si alguno NO_APLICA → indícame cuál y el motivo</ask>
+    <action>Esperar respuesta del usuario antes de continuar</action>
+    <action>Para cada hallazgo marcado NO_APLICA: actualizar Estado y agregar motivo en columna Sugerencia</action>
+    <action>Recalcular conteos excluyendo NO_APLICA</action>
   </step>
 
-  <!-- ════════════════════════════════════════════════════════════════════════ -->
-  <!-- STEP 3: Análisis de Código [3/5]                                         -->
-  <!-- ════════════════════════════════════════════════════════════════════════ -->
-  
-  <step n="3" goal="Analizar código: seguridad, backend, frontend">
-    <output>═══ EJECUTANDO [3/5]: analisis-codigo ═══</output>
-    
-    <invoke path="{installed_path}/sub-workflows/3-analisis-codigo/">
-      <input>staged_files, story_number, manual_context</input>
-    </invoke>
-    
-    <expected-output format="markdown">
-      ## [3/5] Análisis de Código
-      
-      ### Seguridad (OWASP/BOLA)
-      | Severidad | Categoría | Issue | Archivo | Línea |
-      ...
-      **Resumen**: X hallazgos seguridad
-      
-      ### Backend
-      | Severidad | Tipo | Issue | Archivo | Línea |
-      ...
-      **Resumen**: Y hallazgos backend
-      
-      ### Frontend
-      [tabla o "No Aplica"]
-      **Resumen**: Z hallazgos frontend
-    </expected-output>
-    
-    <action>Agregar hallazgos a {{all_findings}}</action>
-    
-    <output>[3/5] ✅ analisis-codigo COMPLETADO - Seguridad: {{sec}}, Backend: {{back}}, Frontend: {{front}}</output>
+  <step n="5" goal="Decidir">
+    <action>Decisión:
+      - BLOQUEADO: alta_count > 3 OR vulnerabilidad crítica de seguridad
+      - CAMBIOS SOLICITADOS: alta_count >= 1 OR media_count > 5
+      - APROBADO CON OBSERVACIONES: alta_count == 0 AND media_count entre 1-5
+      - APROBADO: alta_count == 0 AND media_count == 0
+    </action>
+    <action>Mostrar resumen con decisión y lista consolidada de hallazgos</action>
   </step>
 
-  <!-- ════════════════════════════════════════════════════════════════════════ -->
-  <!-- STEP 4: Validación de Testing [4/5]                                      -->
-  <!-- ════════════════════════════════════════════════════════════════════════ -->
-  
-  <step n="4" goal="Validar cobertura de tests">
-    <output>═══ EJECUTANDO [4/5]: validacion-testing ═══</output>
+  <step n="6" goal="Persistir y siguiente paso">
+    <action>Usar template: {installed_path}/template.md como guía para el formato de salida</action>
+    <action>Appendar al archivo de historia la sección "## Revisión de Código (Peer Review)" con:
+      - Revisor, Fecha, Decisión
+      - Tabla resumen (ALTA, MEDIA, BAJA counts)
+      - Una sección "#### TIPO" por cada tipo de revisión que tenga hallazgos
+      - Tabla de hallazgos por tipo: Archivo | Línea | Severidad | Estado | Problema | Sugerencia
+    </action>
+    <action>Omitir secciones de tipos sin hallazgos (no incluir tablas vacías)</action>
+    <action>Actualizar Status: Aprobado→"Aprobada", Aprobado con Obs→"Aprobada con Observaciones", Cambios Sol→"Cambios Solicitados", Bloqueado→"Bloqueada"</action>
     
-    <invoke path="{installed_path}/sub-workflows/4-validacion-testing/">
-      <input>staged_files, story_number, manual_context</input>
-    </invoke>
-    
-    <expected-output format="markdown">
-      ## [4/5] Validación de Testing
-      
-      ### Tests Unitarios
-      **Métricas**: X impl, Y tests, Z% cobertura
-      | Severidad | Issue | Archivo | Detalle |
-      ...
-      
-      ### Tests de Integración
-      **Métricas**: Documentados: X, Implementados: Y
-      | Severidad | Issue | Detalle |
-      ...
-    </expected-output>
-    
-    <action>Agregar hallazgos a {{all_findings}}</action>
-    
-    <output>[4/5] ✅ validacion-testing COMPLETADO - Unitarios: {{unit}}, Integración: {{integ}}</output>
-  </step>
-
-  <!-- ════════════════════════════════════════════════════════════════════════ -->
-  <!-- STEP 5: Decisión Final [5/5]                                             -->
-  <!-- ════════════════════════════════════════════════════════════════════════ -->
-  
-  <step n="5" goal="Consolidar y decidir">
-    <output>═══ EJECUTANDO [5/5]: decision-outcome ═══</output>
-    
-    <action>Deduplicar {{all_findings}}</action>
-    <action>Calcular estadísticas: total, por severidad, por categoría</action>
-    
-    <invoke path="{installed_path}/sub-workflows/5-decision-outcome/">
-      <input>all_findings, statistics, manual_context</input>
-    </invoke>
-    
-    <decision-rules>
-      BLOQUEADO si:
-        - >3 hallazgos ALTA
-        - AC crítico sin implementar
-        - Vulnerabilidad OWASP crítica
-      
-      CAMBIOS SOLICITADOS si:
-        - 1-3 hallazgos ALTA
-        - ACs parcialmente cubiertos
-        - Tests faltantes
-      
-      APROBADO si:
-        - 0 hallazgos ALTA
-        - Todos los ACs cubiertos
-        - Solo issues menores
-    </decision-rules>
-    
-    <output>[5/5] ✅ decision-outcome COMPLETADO - Decisión: {{outcome}}</output>
-  </step>
-
-  <!-- ════════════════════════════════════════════════════════════════════════ -->
-  <!-- STEP 6: PERSISTIR REPORTE EN HISTORIA                                    -->
-  <!-- ════════════════════════════════════════════════════════════════════════ -->
-  
-  <step n="6" goal="Persistir reporte en archivo de historia">
-    <critical>DEBES escribir el reporte EN EL ARCHIVO DE HISTORIA usando replace_string_in_file o crear sección al final</critical>
-    <critical>DEBES actualizar el campo Status según la decisión tomada</critical>
-    
-    <action>Leer archivo {{story_path}} completo</action>
-    
-    <action>Buscar si existe sección "## Revisión de Código (Peer Review)"</action>
-    <check if="sección existe">
-      <action>Reemplazar sección completa con el nuevo reporte</action>
-    </check>
-    <check if="sección NO existe">
-      <action>Agregar nueva sección al final del archivo antes de cualquier "---" final</action>
-    </check>
-    
-    <action>Cargar template desde {installed_path}/template.md</action>
-    <action>Renderizar template reemplazando todas las variables {{variable}} con los valores calculados</action>
-    <action>Para campos vacíos usar defaults: tabla_* = "Sin hallazgos", tabla_frontend = "No aplica" si no hay archivos frontend</action>
-    
-    <action>Actualizar campo "Status:" en el archivo según outcome:</action>
-    <status-mapping>
-      - Si outcome == "Aprobado" → Status: "Aprobada"
-      - Si outcome == "Aprobado con Observaciones" → Status: "Aprobada con Observaciones"  
-      - Si outcome == "Cambios Solicitados" → Status: "Cambios Solicitados"
-      - Si outcome == "Bloqueado" → Status: "Bloqueada"
-    </status-mapping>
-    
-    <mandatory-actions>
-      <action order="1">EJECUTAR replace_string_in_file para actualizar Status en la cabecera</action>
-      <action order="2">EJECUTAR replace_string_in_file para agregar/reemplazar sección de revisión</action>
-      <action order="3">VERIFICAR que ambas modificaciones se aplicaron correctamente</action>
-    </mandatory-actions>
-    
-    <on-failure>
-      <retry max="3">Reintentar la escritura del archivo</retry>
-      <fallback>
-        <output>
-⚠️ ERROR CRÍTICO: No se pudo persistir la revisión en el archivo.
-
-Por favor, copia manualmente el siguiente contenido al final del archivo {{story_path}}:
-
-{{contenido_seccion_revision}}
-
-Y actualiza el Status a: {{new_status}}
-        </output>
-      </fallback>
-    </on-failure>
-    
-    <post-validation>
-      <action>Leer {{story_path}} nuevamente</action>
-      <check if="sección 'Revisión de Código' NO existe en archivo">
-        <halt>ERROR: La sección de revisión NO fue persistida. Reintentando...</halt>
-      </check>
-      <check if="Status NO fue actualizado">
-        <halt>ERROR: El Status NO fue actualizado. Reintentando...</halt>
-      </check>
-    </post-validation>
-    
-    <output>
-═══════════════════════════════════════════════════════════════
-✅ REVISIÓN COMPLETADA Y PERSISTIDA
-═══════════════════════════════════════════════════════════════
-
-Historia: {{story_number}}
-Decisión: {{outcome}}
-Archivo actualizado: {{story_path}}
-
-📊 Hallazgos totales: {{stats.total}}
-- ALTA: {{stats.alta}}
-- MEDIA: {{stats.media}}  
-- BAJA: {{stats.baja}}
-
-📋 Status actualizado a: {{new_status}}
-📝 Sección de revisión agregada al archivo
-
-👉 Próximos pasos:
-{{next_steps}}
-
----
-⚠️ RECORDATORIO: Para implementar los cambios solicitados, usa el workflow 
-*desarrollar-historia-usuario con el agente Developer. Este workflow es SOLO revisión.
+    <output if="decisión != 'APROBADO'">
+📋 Para corregir los hallazgos:
+1. Activa el agente Developer con *help
+2. Ejecuta *desarrollar-historia-usuario
     </output>
   </step>
 

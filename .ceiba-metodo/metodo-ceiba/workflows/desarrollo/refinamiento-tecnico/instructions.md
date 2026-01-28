@@ -422,23 +422,62 @@ Tu respuesta:</ask>
 
 </step>
 
-<step n="7" goal="Validación con Checklist de Reflexión">
+<step n="7" goal="Ejecutar Subagente: Validación con Checklist">
 
-<critical>Ejecutar checklist ANTES de guardar el archivo</critical>
+<mandate>OBLIGATORIO: Usar herramienta runSubagent - NO validar manualmente</mandate>
+<critical>Este paso NO puede ser ejecutado por el agente principal - DEBE delegarse a subagente</critical>
+<critical>Si NO usas runSubagent, el workflow está INCOMPLETO</critical>
 
-<action>Cargar y ejecutar: {installed_path}/checklist.md</action>
-<action>Validar CADA item del checklist contra el refinamiento generado</action>
+<action>Invocar herramienta runSubagent con estos parámetros:</action>
 
-<check if="algún item de 'Criterios de Fallo' está marcado">
+<action>
+runSubagent({
+  description: "Validar CHECKLIST_REFINAMIENTO",
+  prompt: "Eres un AUDITOR DE CALIDAD DE REFINAMIENTO.
+
+REFINAMIENTO GENERADO:
+{{refinamiento_tecnico_completo}}
+
+TAREAS DE IMPLEMENTACIÓN:
+{{tareas_implementacion_completo}}
+
+CHECKLIST A VALIDAR (cargar de {installed_path}/checklist.md):
+{{contenido_checklist}}
+
+CODING STANDARDS (cargar de {architecture_sharded_location}/{coding_standards_file} si existe):
+{{contenido_coding_standards}}
+
+PROCESO:
+1. Validar CADA item del checklist contra el refinamiento
+2. Verificar cumplimiento de coding standards en tareas propuestas
+3. Marcar cada item: ✅ CUMPLE | ❌ FALLA | ⚠️ N/A
+
+RESPONDE SOLO con JSON:
+{
+  \"validacion\": \"APROBADO|RECHAZADO\",
+  \"items\": [
+    {\"seccion\": \"...\", \"item\": \"...\", \"estado\": \"CUMPLE|FALLA|N/A\", \"detalle\": \"...\"}
+  ],
+  \"criterios_fallo\": [
+    {\"item\": \"...\", \"problema\": \"...\", \"correccion\": \"...\"}
+  ]
+}"
+})
+</action>
+
+<check if="runSubagent NO fue invocado">
+<action>HALT - Este paso es BLOQUEANTE. Ejecutar runSubagent antes de continuar.</action>
+</check>
+
+<action>Parsear resultado del subagente</action>
+
+<check if="validacion == 'RECHAZADO' OR criterios_fallo no vacío">
+<action>Mostrar criterios de fallo al usuario</action>
 <action>HALT - Corregir issues identificados antes de continuar</action>
 <action>Volver al step correspondiente para corregir</action>
 </check>
 
-<check if="items incompletos en secciones principales">
-<action>Completar items faltantes o documentar justificación</action>
-</check>
-
-<output>✅ Checklist de reflexión validado</output>
+<output>✅ Checklist de reflexión validado por subagente</output>
 
 </step>
 

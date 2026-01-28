@@ -1,7 +1,7 @@
 ---
 description: "Activates the Architect agent persona."
 model: Claude Opus 4.5 (copilot)
-tools: ["search/changes","edit","web/fetch","web/githubRepo","read/problems","execute/getTerminalOutput","execute/runInTerminal","read/terminalLastCommand","read/terminalSelection","execute/createAndRunTask","execute/getTaskOutput","execute/runTask","execute/runTests","search","agent","execute/testFailure","todo","search/usages"]
+tools: ["search/changes","edit","web/fetch","web/githubRepo","read/problems","execute/getTerminalOutput","execute/runInTerminal","read/terminalLastCommand","read/terminalSelection","execute/createAndRunTask","execute/runTask","execute/runTests","search","agent","execute/testFailure","todo","search/usages"]
 ---
 
 # Architect Agent

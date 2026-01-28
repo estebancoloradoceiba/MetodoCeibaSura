@@ -1,53 +1,17 @@
 # Revisar Historia (Peer Review) Workflow
 
-El workflow `revisar-historia` es un meta-workflow que coordina **5 sub-workflows consolidados** para realizar una revisión de código completa tipo peer review. Genera un reporte estructurado en Markdown que se persiste en el archivo de historia.
+El workflow `revisar-historia` utiliza una **estrategia de subagentes especializados** para realizar una revisión de código completa tipo peer review. Cada subagente tiene contexto limpio y foco total en su especialidad. El agente principal solo coordina y consolida resultados.
 
-## Estructura v4.0.0
+## Estructura v5.0.0
 
 ```
 revisar-historia/
 ├── workflow.yaml           # Configuración principal
-├── instructions.xml        # Orquestador (5 steps + validación prerrequisito)
-├── checklist.md           # Validación
-├── README.md              # Este archivo (incluye algoritmos de agregación)
-│
-├── sub-workflows/         # Los 5 sub-workflows
-│   ├── 1-contexto-tecnico/
-│   ├── 2-validacion-implementacion/   # Invoca tasks inline
-│   ├── 3-analisis-codigo/             # Invoca tasks XML
-│   ├── 4-validacion-testing/          # Invoca tasks XML
-│   └── 5-decision-outcome/
-│
-└── tasks/                 # Tasks XML con lógica de evaluación
-    ├── diagnostic-metodo-flujo-desarrollo.xml  # ⚡ PRERREQUISITO: Valida flujo completo
-    ├── diagnostic-seguridad.xml      # BOLA + OWASP Top 10
-    ├── diagnostic-backend.xml        # Arquitectura, errores
-    ├── diagnostic-frontend.xml       # Arquitectura frontend
-    ├── diagnostic-unit-tests.xml     # AAA, mocks, data builder
-    └── diagnostic-integration-tests.xml  # NO mocks internos
+├── instructions.xml        # Orquestador (5 steps con subagentes)
+└── README.md              # Este archivo
 ```
 
-## Validación de Flujo de Desarrollo (Prerrequisito)
-
-Antes de ejecutar los 5 sub-workflows, el sistema valida que la historia/incidente haya completado todo el flujo de desarrollo del Método Ceiba:
-
-### Para Historias de Usuario:
-| Fase | Workflow | Severidad si Falta |
-|------|----------|-------------------|
-| Análisis Arquitectónico | `*analisis-y-diseno` | ALTA (bloqueante) |
-| Refinamiento Técnico | `*refinamiento-tecnico` | ALTA (bloqueante) |
-| Estimación | `*estimar-historia-usuario` | MEDIA (advertencia) |
-| Desarrollo Completado | `*desarrollar-historia-usuario` | ALTA (bloqueante) |
-
-### Para Incidentes:
-| Fase | Workflow | Severidad si Falta |
-|------|----------|-------------------|
-| Recepción del Error | `*recibir-error` | ALTA (bloqueante) |
-| Diagnóstico | `*diagnosticar` | ALTA (bloqueante) |
-| Refinamiento Técnico | `*refinamiento-tecnico` | ALTA (bloqueante) |
-| Desarrollo Completado | `*desarrollar-historia-usuario` | ALTA (bloqueante) |
-
-Si falta alguna fase de severidad ALTA, la revisión se **bloquea** y muestra los workflows que deben ejecutarse primero.
+> **Rol del Reviewer**: Solo detecta problemas, NO implementa fixes. Si el usuario pide implementar → rechazar y sugerir `*desarrollar-historia-usuario`
 
 ## Uso
 
@@ -55,50 +19,121 @@ Si falta alguna fase de severidad ALTA, la revisión se **bloquea** y muestra lo
 bmad reviewer *revisar-historia
 ```
 
-El workflow ejecuta automáticamente los 5 sub-workflows en secuencia.
+El workflow solicita el número o ruta de la historia/incidente y ejecuta automáticamente todos los subagentes aplicables.
 
-## Los 5 Sub-workflows
+## Los 5 Steps del Workflow
 
-| # | Sub-workflow | Consolida | Output |
-|---|--------------|-----------|--------|
-| 1 | `contexto-tecnico` | - | Stack, docs, GPS arquitectónico |
-| 2 | `validacion-implementacion` | criterios-aceptacion + coherencia-general | Tabla ACs + issues arquitectónicos |
-| 3 | `analisis-codigo` | seguridad + backend + frontend | Hallazgos OWASP, backend, frontend |
-| 4 | `validacion-testing` | pruebas-unitarias + pruebas-integracion | Métricas y gaps de tests |
-| 5 | `decision-outcome` | - | Decisión: Aprobado/Cambios/Bloqueado |
+| Step | Goal | Descripción |
+|------|------|-------------|
+| 1 | Localizar historia y preparar archivos | Busca documento, valida status, obtiene diffs, clasifica archivos |
+| 2 | Lanzar subagentes especializados | Ejecuta runSubagent por cada tipo de revisión con archivos aplicables |
+| 3 | Consolidar resultados | Parsea JSON de subagentes, unifica hallazgos, elimina duplicados |
+| 4 | Decidir | Aplica reglas de decisión según conteo de severidades |
+| 5 | Persistir | Agrega sección "Revisión de Código" y actualiza Status |
 
-## Formato de Output
+## Clasificación de Archivos
 
-Cada sub-workflow genera output en **Markdown con tablas**:
+El Step 1 clasifica los archivos modificados en estas categorías:
 
-```markdown
-## [2/5] Validación de Implementación
+| Tipo | Patrón | Exclusiones |
+|------|--------|-------------|
+| `story_file` | `.story.md`, `.incident.md` | - |
+| `backend_files` | `.java`, `.py`, `.go`, `.cs`, `.rb` | `Test`, `test_` |
+| `frontend_files` | `.ts`, `.tsx`, `.js`, `.jsx`, `.vue`, `.svelte` | `.spec.`, `.test.` |
+| `test_integracion_files` | `IT.java`, `*IntegrationTest`, `integration` | - |
+| `test_unitarios_files` | `Test`, `test_`, `.spec.` | archivos de integración |
+| `cicd_files` | `.github/workflows/*.yml`, `azure-pipelines`, `Jenkinsfile`, `.gitlab-ci*` | - |
+| `config_files` | `*.yaml`, `*.yml`, `*.json`, `*.env`, `Dockerfile` | - |
 
-### Criterios de Aceptación
-| AC | Estado | Implementación | Tests | Gaps |
-|----|--------|----------------|-------|------|
-| AC#1 | ✅ | ServicioX.java | ServicioXTest.java | - |
-| AC#2 | ⚠️ | ControladorY.java | - | Faltan tests |
+## Los 10 Subagentes Especializados
 
-**Resumen**: 3/4 ACs cubiertos
-
-### Coherencia Arquitectónica
-| Severidad | Tipo | Issue | Archivos |
-|-----------|------|-------|----------|
-| ALTA | layer_violation | Controller → Repository directo | Ctrl.java, Repo.java |
-
-**Resumen**: 1 issue arquitectónico
+Cada subagente retorna JSON con formato estándar:
+```json
+{
+  "tipo": "BACKEND|SEGURIDAD|...",
+  "hallazgos": [
+    {"archivo": "...", "linea": N, "severidad": "ALTA|MEDIA|BAJA", "problema": "...", "sugerencia": "..."}
+  ]
+}
 ```
+
+| # | Subagente | Condición de Ejecución | Foco |
+|---|-----------|------------------------|------|
+| 1 | **FLUJO_METODO_CEIBA** | Siempre | Valida secciones obligatorias del documento |
+| 2 | **IMPLEMENTACION_VS_REQUISITOS** | `ac_list` + código | Cada AC cumplido, manejo de errores, casos borde |
+| 3 | **BACKEND** | `backend_files` | Arquitectura, manejo de errores, tolerancia a fallos |
+| 4 | **SEGURIDAD (BOLA)** | `backend_files` o `config_files` | Broken Object Level Authorization |
+| 5 | **PENTESTING** | `backend_files` o `frontend_files` | OWASP Top 10 (excepto BOLA) |
+| 6 | **FRONTEND** | `frontend_files` | Arquitectura, estabilidad, manejo de errores |
+| 7 | **TESTS_INTEGRACION** | `test_integracion_files` | AAA, Data Builder, NO mocks internos |
+| 8 | **TESTS_UNITARIOS** | `test_unitarios_files` | AAA, Data Builder, verify() en Assert |
+| 9 | **CICD** | `cicd_files` | Tareas obligatorias del pipeline |
+| 10 | **FINOPS_GREENOPS** | `backend_files` o `frontend_files` | N+1, recursos, eficiencia |
+
+### Detalle de Subagentes
+
+#### FLUJO_METODO_CEIBA
+Valida que el documento tenga todas las secciones obligatorias:
+
+**Para Historias:**
+- Sección 'Análisis Arquitectónico' presente y completada
+- Sección 'Refinamiento Técnico' o 'Tareas de Implementación' presente
+- Sección 'Estimación' con valores de complejidad
+- Sección 'Dev Agent Record' o evidencia de desarrollo completado
+
+**Para Incidentes:**
+- Sección 'Recepción del Error' (PO) - Status: Triaged
+- Sección 'Diagnóstico' (Architect) - Root Cause Analysis completado
+- Sección 'Refinamiento Técnico' o 'Tareas de Implementación' presente
+- Sección 'Dev Agent Record' o evidencia de desarrollo completado
+
+#### SEGURIDAD (BOLA)
+Superficies auditadas: REST, GraphQL, SOAP, gRPC, WebSocket, colas/eventos, jobs, archivos/URLs prefirmadas, buscadores/reportes, repositorios/ORM.
+
+Proceso:
+1. Verificar autorización a nivel de recurso
+2. Seguir cadena controller → service → repository
+3. Buscar validaciones de ownership
+4. Clasificar: SEGURO / VULNERABLE
+
+#### CICD
+Tareas obligatorias en pipeline:
+- `build`, `test`
+- `sonar` (debe detener si quality gate falla)
+- Análisis de vulnerabilidades (dependency track o similar)
+- Análisis de licencias
+- Análisis de secretos (git leaks o similar)
+- Despliegue a producción Y (pruebas O desarrollo)
+
+**Backend adicional:** pruebas carga, DAST, mutation testing, pruebas arquitectura  
+**Frontend adicional:** pruebas funcionales, NO `--legacy-peer-deps`
+
+#### FINOPS_GREENOPS
+Problemas críticos buscados:
+- Queries N+1, llamadas redundantes
+- Recursos no liberados (conexiones, streams)
+- Algoritmos de complejidad alta evitable
+- Cacheo ausente donde beneficiaría
+- Llamadas síncronas que podrían ser async/batch
+- Procesamiento redundante
+- Uso ineficiente de memoria
 
 ## Decisiones de Revisión
 
-El sub-workflow `decision-outcome` aplica estas reglas:
+| Decisión | Condición | Status Resultante |
+|----------|-----------|-------------------|
+| **BLOQUEADO** | `alta_count > 3` OR vulnerabilidad crítica de seguridad | Bloqueada |
+| **CAMBIOS SOLICITADOS** | `alta_count >= 1` OR `media_count > 5` | Cambios Solicitados |
+| **APROBADO CON OBSERVACIONES** | `alta_count == 0` AND `media_count` entre 1-5 | Aprobada con Observaciones |
+| **APROBADO** | `alta_count == 0` AND `media_count == 0` | Aprobada |
 
-| Decisión | Condición |
-|----------|-----------|
-| **BLOQUEADO** | >3 hallazgos ALTA, AC crítico sin implementar, vulnerabilidad OWASP crítica |
-| **CAMBIOS SOLICITADOS** | 1-3 hallazgos ALTA, ACs parciales, tests faltantes |
-| **APROBADO** | 0 hallazgos ALTA, todos los ACs cubiertos |
+## Validación de Status
+
+El Step 1 verifica que el documento tenga uno de estos estados válidos para revisión:
+- Lista para Revisión
+- Ready for Review
+- Desarrollo Completado
+- En Revisión
 
 ## Variables de Configuración
 
@@ -107,61 +142,27 @@ Desde `config.yaml`:
 | Variable | Descripción |
 |----------|-------------|
 | `dev_story_location` | Directorio con historias |
-| `architecture_sharded_location` | Docs de arquitectura |
+| `incident_location` | Directorio con incidentes |
 | `communication_language` | Idioma de comunicación |
 | `document_output_language` | Idioma de documentos |
 
-## Migración v3 → v4
+## Obtención de Archivos Modificados
 
-| Antes (v3) | Ahora (v4) |
+Proceso en Step 1:
+1. Intentar: `git diff --name-only` (staged + unstaged)
+2. Si falla o vacío → Preguntar rama y commit
+3. Con rama/commit: `git diff --name-only {{commit}}..HEAD` o `git diff --name-only main..{{rama}}`
+4. Mostrar lista y solicitar confirmación del usuario
+5. Para cada archivo confirmado: `git diff main -- {{filepath}}`
+
+## Migración v4 → v5
+
+| Antes (v4) | Ahora (v5) |
 |------------|------------|
-| 9 sub-workflows | 5 sub-workflows |
-| Output JSON intermedio | Output Markdown directo |
-| ~50-100 tool calls | ~20-30 tool calls |
-| 3 carpetas (diagnosticos/, manual-reviews/, sub-workflows/) | 1 carpeta (sub-workflows/) |
-| Nombres sin orden | Prefijo numérico (1-, 2-, 3-, 4-, 5-) |
-
----
-
-## Algoritmos de Agregación
-
-### mergeAllFindings()
-
-Consolida hallazgos de los 5 sub-workflows en tablas Markdown.
-
-**Esquema de hallazgo**:
-| Archivo | Línea | Severidad | Categoría | Problema | Solución |
-|---------|-------|-----------|-----------|----------|----------|
-
-**Categorías válidas**: `implementacion`, `seguridad`, `backend`, `frontend`, `testing`
-
-### deduplicateFindings()
-
-Elimina duplicados usando fingerprint: `hash(archivo + línea + primeras 50 chars del problema)`.
-- Si duplicados: mantener el de mayor severidad
-- Prioridad: ALTA > MEDIA > BAJA
-
-### generateStatistics()
-
-Genera resumen ejecutivo después de cada sub-workflow:
-- Total hallazgos: X
-- Por severidad: ALTA(n) | MEDIA(n) | BAJA(n)
-- Top 3 archivos afectados
-
-### Obtención de Archivos Modificados
-
-Usa `get_changed_files` con filtros de exclusión:
-- `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`
-- `node_modules/`, `dist/`, `build/`, `.next/`
-- `coverage/`, `.nyc_output/`, `.cache/`
-
-### Manejo de Errores
-
-| Error | Acción |
-|-------|--------|
-| Sub-workflow no encuentra archivos | Warning, continuar |
-| Archivo no accesible | Skip archivo, log warning |
-| Git blame falla | Usar "unknown" como usuario |
+| 5 sub-workflows con archivos separados | 10 subagentes inline en instructions.xml |
+| Carpetas sub-workflows/ y tasks/ | Sin carpetas adicionales |
+| Ejecución secuencial de sub-workflows | runSubagent por especialidad |
+| Tasks XML externos | Prompts especializados inline |
 
 ---
 

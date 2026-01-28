@@ -33,8 +33,17 @@
 
 ---
 
+## Seguridad y Eficiencia
+
+- [ ] **Seguridad considerada**: Tareas con endpoints/datos sensibles incluyen validación de ownership (BOLA)
+- [ ] **Eficiencia considerada**: Se evitan N+1, llamadas redundantes, recursos sin liberar en el diseño- [ ] **Tolerancia a fallos**: Integraciones externas especifican timeouts, reintentos o circuit breaker
+- [ ] **Validación de entrada**: Endpoints con input de usuario incluyen sanitización
+
+---
+
 ## 📋 Completitud del Refinamiento
 
+- [ ] **ACs cubiertos**: Cada criterio de aceptación tiene al menos una tarea asociada
 - [ ] **Todas las fases definidas**: Fase 0 (si aplica) + Fases de implementación + Fase N (QA/Deployment)
 - [ ] **Subtareas con archivos**: TODA subtarea incluye archivo específico (formato: "Acción + Archivo")
 - [ ] **Complejidad justificada**: Nivel de complejidad (BAJA/MEDIA/ALTA) tiene justificación clara
